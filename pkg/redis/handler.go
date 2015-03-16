@@ -106,26 +106,3 @@ func ParseArgs(resp Resp) (cmd string, args [][]byte, err error) {
 	}
 	return cmd, bs[1:], nil
 }
-
-func ParseIArgs(resp Resp) (cmd string, args []interface{}, err error) {
-	a, err := AsArray(resp, nil)
-	if err != nil {
-		return "", nil, err
-	} else if len(a) == 0 {
-		return "", nil, errors.New("empty array")
-	}
-	is := make([]interface{}, len(a))
-	for i := 0; i < len(a); i++ {
-		b, err := AsBulkBytes(a[i], nil)
-		if err != nil {
-			return "", nil, err
-		} else {
-			is[i] = b
-		}
-	}
-	cmd = strings.ToLower(string(is[0].([]byte)))
-	if cmd == "" {
-		return "", nil, errors.New("empty command")
-	}
-	return cmd, is[1:], nil
-}
