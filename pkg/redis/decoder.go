@@ -6,11 +6,17 @@ package redis
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"strconv"
 
 	"github.com/wandoulabs/redis-port/pkg/libs/errors"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
 	"github.com/wandoulabs/redis-port/pkg/libs/log"
+)
+
+var (
+	ErrBadRespCRLFEnd  = errors.Static("bad resp CRLF end")
+	ErrBadRespBytesLen = errors.Static("bad resp bytes len")
+	ErrBadRespArrayLen = errors.Static("bad resp array len")
 )
 
 type decoder struct {
@@ -19,7 +25,7 @@ type decoder struct {
 
 func Decode(r *bufio.Reader) (Resp, error) {
 	d := &decoder{r}
-	return d.decodeResp()
+	return d.decodeResp(0)
 }
 
 func MustDecode(r *bufio.Reader) Resp {
@@ -43,42 +49,45 @@ func MustDecodeFromBytes(p []byte) Resp {
 	return resp
 }
 
-func (d *decoder) decodeResp() (Resp, error) {
+func (d *decoder) decodeResp(depth int) (Resp, error) {
 	t, err := d.decodeType()
 	if err != nil {
 		return nil, err
 	}
 	switch t {
-	default:
-		return nil, errors.Trace(ErrBadRespType)
-	case TypeString:
+	case typeString:
 		resp := &String{}
 		resp.Value, err = d.decodeText()
 		return resp, err
-	case TypeError:
+	case typeError:
 		resp := &Error{}
 		resp.Value, err = d.decodeText()
 		return resp, err
-	case TypeInt:
+	case typeInt:
 		resp := &Int{}
 		resp.Value, err = d.decodeInt()
 		return resp, err
-	case TypeBulkBytes:
+	case typeBulkBytes:
 		resp := &BulkBytes{}
 		resp.Value, err = d.decodeBulkBytes()
 		return resp, err
-	case TypeArray:
+	case typeArray:
 		resp := &Array{}
-		resp.Value, err = d.decodeArray()
+		resp.Value, err = d.decodeArray(depth)
 		return resp, err
+	default:
+		if depth != 0 {
+			return nil, errors.Errorf("bad resp type %s", t)
+		}
+		return d.decodeSingleLineBulkBytesArray(byte(t))
 	}
 }
 
-func (d *decoder) decodeType() (RespType, error) {
+func (d *decoder) decodeType() (respType, error) {
 	if b, err := d.r.ReadByte(); err != nil {
 		return 0, errors.Trace(err)
 	} else {
-		return RespType(b), nil
+		return respType(b), nil
 	}
 }
 
@@ -88,7 +97,7 @@ func (d *decoder) decodeText() (string, error) {
 		return "", errors.Trace(err)
 	}
 	if n := len(b) - 2; n < 0 || b[n] != '\r' {
-		return "", errors.Trace(ErrBadRespEnd)
+		return "", errors.Trace(ErrBadRespCRLFEnd)
 	} else {
 		return string(b[:n]), nil
 	}
@@ -117,16 +126,16 @@ func (d *decoder) decodeBulkBytes() ([]byte, error) {
 		return nil, nil
 	}
 	b := make([]byte, n+2)
-	if _, err := ioutils.ReadFull(d.r, b); err != nil {
+	if _, err := io.ReadFull(d.r, b); err != nil {
 		return nil, errors.Trace(err)
 	}
 	if b[n] != '\r' || b[n+1] != '\n' {
-		return nil, errors.Trace(ErrBadRespEnd)
+		return nil, errors.Trace(ErrBadRespCRLFEnd)
 	}
 	return b[:n], nil
 }
 
-func (d *decoder) decodeArray() ([]Resp, error) {
+func (d *decoder) decodeArray(depth int) ([]Resp, error) {
 	n, err := d.decodeInt()
 	if err != nil {
 		return nil, err
@@ -138,9 +147,34 @@ func (d *decoder) decodeArray() ([]Resp, error) {
 	}
 	a := make([]Resp, n)
 	for i := 0; i < len(a); i++ {
-		if a[i], err = d.decodeResp(); err != nil {
+		if a[i], err = d.decodeResp(depth + 1); err != nil {
 			return nil, err
 		}
 	}
 	return a, nil
+}
+
+func (d *decoder) decodeSingleLineBulkBytesArray(first byte) (Resp, error) {
+	if first == '\n' {
+		return nil, errors.Trace(ErrBadRespCRLFEnd)
+	}
+	x, err := d.r.ReadBytes('\n')
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	b := append([]byte{first}, x...)
+	if n := len(b) - 2; n < 0 || b[n] != '\r' {
+		return nil, errors.Trace(ErrBadRespCRLFEnd)
+	} else {
+		resp := &Array{}
+		for l, r := 0, 0; r <= n; r++ {
+			if r == n || b[r] == ' ' {
+				if l < r {
+					resp.Value = append(resp.Value, &BulkBytes{b[l:r]})
+				}
+				l = r + 1
+			}
+		}
+		return resp, nil
+	}
 }

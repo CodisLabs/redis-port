@@ -13,14 +13,25 @@ import (
 	"os"
 	"time"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/counter"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
+	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
 	"github.com/wandoulabs/redis-port/pkg/libs/log"
 	"github.com/wandoulabs/redis-port/pkg/rdb"
 )
 
 type cmdDecode struct {
-	nread, nsave, nobjs counter.Int64
+	rbytes, wbytes, nentry atomic2.Int64
+}
+
+type cmdDecodeStat struct {
+	rbytes, wbytes, nentry int64
+}
+
+func (cmd *cmdDecode) Stat() *cmdDecodeStat {
+	return &cmdDecodeStat{
+		rbytes: cmd.rbytes.Get(),
+		wbytes: cmd.wbytes.Get(),
+		nentry: cmd.nentry.Get(),
+	}
 }
 
 func (cmd *cmdDecode) Main() {
@@ -51,10 +62,10 @@ func (cmd *cmdDecode) Main() {
 		saveto = os.Stdout
 	}
 
-	reader := bufio.NewReaderSize(ioutils.NewCountReader(readin, &cmd.nread), ReaderBufferSize)
-	writer := bufio.NewWriterSize(ioutils.NewCountWriter(saveto, &cmd.nsave), WriterBufferSize)
+	reader := bufio.NewReaderSize(readin, ReaderBufferSize)
+	writer := bufio.NewWriterSize(saveto, WriterBufferSize)
 
-	ipipe := newRDBLoader(reader, args.parallel*32)
+	ipipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	opipe := make(chan string, cap(ipipe))
 
 	go func() {
@@ -77,6 +88,7 @@ func (cmd *cmdDecode) Main() {
 	go func() {
 		defer close(wait)
 		for s := range opipe {
+			cmd.wbytes.Add(int64(len(s)))
 			if _, err := writer.WriteString(s); err != nil {
 				log.PanicError(err, "write string failed")
 			}
@@ -90,15 +102,19 @@ func (cmd *cmdDecode) Main() {
 			done = true
 		case <-time.After(time.Second):
 		}
-		n, w, o := cmd.nread.Get(), cmd.nsave.Get(), cmd.nobjs.Get()
+		stat := cmd.Stat()
+		var b bytes.Buffer
+		fmt.Fprintf(&b, "decode: ")
 		if nsize != 0 {
-			p := 100 * n / nsize
-			log.Infof("total = %d - %12d [%3d%%]  write=%-12d objs=%d\n", nsize, n, p, w, o)
+			fmt.Fprintf(&b, "total = %d - %12d [%3d%%]", nsize, stat.rbytes, 100*stat.rbytes/nsize)
 		} else {
-			log.Infof("total = %12d  write=%-12d objs=%d\n", n, w, o)
+			fmt.Fprintf(&b, "total = %12d", stat.rbytes)
 		}
+		fmt.Fprintf(&b, "  write=%-12d", stat.wbytes)
+		fmt.Fprintf(&b, "  entry=%-12d", stat.nentry)
+		log.Info(b.String())
 	}
-	log.Info("done")
+	log.Info("decode: done")
 }
 
 func (cmd *cmdDecode) decoderMain(ipipe <-chan *rdb.BinEntry, opipe chan<- string) {
@@ -213,7 +229,7 @@ func (cmd *cmdDecode) decoderMain(ipipe <-chan *rdb.BinEntry, opipe chan<- strin
 				fmt.Fprintf(&b, "%s\n", toJson(o))
 			}
 		}
-		cmd.nobjs.Incr()
+		cmd.nentry.Incr()
 		opipe <- b.String()
 	}
 }

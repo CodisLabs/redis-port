@@ -6,6 +6,7 @@ package redis
 import (
 	"bufio"
 	"bytes"
+	"reflect"
 	"strconv"
 
 	"github.com/wandoulabs/redis-port/pkg/libs/errors"
@@ -72,36 +73,36 @@ func MustEncodeToBytes(r Resp) []byte {
 func (e *encoder) encodeResp(r Resp) error {
 	switch x := r.(type) {
 	default:
-		return errors.Trace(ErrBadRespType)
+		return errors.Errorf("bad resp type <%s>", reflect.TypeOf(r))
 	case *String:
-		if err := e.encodeType(TypeString); err != nil {
+		if err := e.encodeType(typeString); err != nil {
 			return err
 		}
 		return e.encodeText(x.Value)
 	case *Error:
-		if err := e.encodeType(TypeError); err != nil {
+		if err := e.encodeType(typeError); err != nil {
 			return err
 		}
 		return e.encodeText(x.Value)
 	case *Int:
-		if err := e.encodeType(TypeInt); err != nil {
+		if err := e.encodeType(typeInt); err != nil {
 			return err
 		}
 		return e.encodeInt(x.Value)
 	case *BulkBytes:
-		if err := e.encodeType(TypeBulkBytes); err != nil {
+		if err := e.encodeType(typeBulkBytes); err != nil {
 			return err
 		}
 		return e.encodeBulkBytes(x.Value)
 	case *Array:
-		if err := e.encodeType(TypeArray); err != nil {
+		if err := e.encodeType(typeArray); err != nil {
 			return err
 		}
 		return e.encodeArray(x.Value)
 	}
 }
 
-func (e *encoder) encodeType(t RespType) error {
+func (e *encoder) encodeType(t respType) error {
 	return errors.Trace(e.w.WriteByte(byte(t)))
 }
 

@@ -1,12 +1,12 @@
 // Copyright 2014 Wandoujia Inc. All Rights Reserved.
 // Licensed under the MIT (MIT-LICENSE.txt) license.
 
-package counter
+package atomic2
 
 import "sync/atomic"
 
 type Int64 struct {
-	v, s int64
+	v int64
 }
 
 func (a *Int64) Get() int64 {
@@ -17,8 +17,12 @@ func (a *Int64) Set(v int64) {
 	atomic.StoreInt64(&a.v, v)
 }
 
-func (a *Int64) Reset() int64 {
-	return atomic.SwapInt64(&a.v, 0)
+func (a *Int64) CompareAndSwap(o, n int64) bool {
+	return atomic.CompareAndSwapInt64(&a.v, o, n)
+}
+
+func (a *Int64) Swap(v int64) int64 {
+	return atomic.SwapInt64(&a.v, v)
 }
 
 func (a *Int64) Add(v int64) int64 {
@@ -27,14 +31,6 @@ func (a *Int64) Add(v int64) int64 {
 
 func (a *Int64) Sub(v int64) int64 {
 	return a.Add(-v)
-}
-
-func (a *Int64) Snapshot() {
-	a.s = a.Get()
-}
-
-func (a *Int64) Delta() int64 {
-	return a.Get() - a.s
 }
 
 func (a *Int64) Incr() int64 {

@@ -380,7 +380,7 @@ func (l *Logger) output(traceskip int, err error, t LogType, s string) error {
 	}
 	if err != nil {
 		fmt.Fprint(&b, "[error]: ", err.Error(), "\n")
-		if stack := errors.ErrorStack(err); stack != nil {
+		if stack := errors.Stack(err); stack != nil {
 			fmt.Fprint(&b, stack.StringWithIndent(1))
 		}
 	}

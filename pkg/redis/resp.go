@@ -3,45 +3,45 @@
 
 package redis
 
-import "github.com/wandoulabs/redis-port/pkg/libs/errors"
+import (
+	"fmt"
+	"reflect"
 
-var (
-	ErrBadRespType     = errors.Static("bad resp type")
-	ErrBadRespEnd      = errors.Static("bad resp end")
-	ErrBadRespInt      = errors.Static("bad resp int")
-	ErrBadRespBytesLen = errors.Static("bad resp bytes len")
-	ErrBadRespArrayLen = errors.Static("bad resp array len")
+	"github.com/wandoulabs/redis-port/pkg/libs/errors"
 )
 
-type RespType byte
+type respType byte
 
 const (
-	TypeString    RespType = '+'
-	TypeError     RespType = '-'
-	TypeInt       RespType = ':'
-	TypeBulkBytes RespType = '$'
-	TypeArray     RespType = '*'
+	typeString    respType = '+'
+	typeError     respType = '-'
+	typeInt       respType = ':'
+	typeBulkBytes respType = '$'
+	typeArray     respType = '*'
 )
 
-func (t RespType) String() string {
+func (t respType) String() string {
 	switch t {
-	case TypeString:
+	case typeString:
 		return "<string>"
-	case TypeError:
+	case typeError:
 		return "<error>"
-	case TypeInt:
+	case typeInt:
 		return "<int>"
-	case TypeBulkBytes:
+	case typeBulkBytes:
 		return "<bulkbytes>"
-	case TypeArray:
+	case typeArray:
 		return "<array>"
 	default:
-		return "<unknown>"
+		if c := uint8(t); c > 0x20 && c < 0x7F {
+			return fmt.Sprintf("<unknown-%c", c)
+		} else {
+			return fmt.Sprintf("<unknown-0x%02x", c)
+		}
 	}
 }
 
 type Resp interface {
-	Type() RespType
 }
 
 type String struct {
@@ -52,24 +52,12 @@ func NewString(s string) *String {
 	return &String{s}
 }
 
-func (r *String) Type() RespType {
-	return TypeString
-}
-
 type Error struct {
 	Value string
 }
 
 func NewError(err error) *Error {
 	return &Error{err.Error()}
-}
-
-func NewErrorWithString(s string) *Error {
-	return &Error{s}
-}
-
-func (r *Error) Type() RespType {
-	return TypeError
 }
 
 type Int struct {
@@ -80,10 +68,6 @@ func NewInt(n int64) *Int {
 	return &Int{n}
 }
 
-func (r *Int) Type() RespType {
-	return TypeInt
-}
-
 type BulkBytes struct {
 	Value []byte
 }
@@ -92,24 +76,12 @@ func NewBulkBytes(p []byte) *BulkBytes {
 	return &BulkBytes{p}
 }
 
-func NewBulkBytesWithString(s string) *BulkBytes {
-	return &BulkBytes{[]byte(s)}
-}
-
-func (r *BulkBytes) Type() RespType {
-	return TypeBulkBytes
-}
-
 type Array struct {
 	Value []Resp
 }
 
 func NewArray() *Array {
 	return &Array{}
-}
-
-func (r *Array) Type() RespType {
-	return TypeArray
 }
 
 func (r *Array) Append(a Resp) {
@@ -130,4 +102,82 @@ func (r *Array) AppendInt(n int64) {
 
 func (r *Array) AppendError(err error) {
 	r.Append(NewError(err))
+}
+
+func AsString(r Resp, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	x, ok := r.(*String)
+	if ok && x != nil {
+		return x.Value, nil
+	} else {
+		return "", errors.Errorf("expect String, but got <%s>", reflect.TypeOf(r))
+	}
+}
+
+func AsError(r Resp, err error) (string, error) {
+	if err != nil {
+		return "", err
+	}
+	x, ok := r.(*Error)
+	if ok && x != nil {
+		return x.Value, nil
+	} else {
+		return "", errors.Errorf("expect Error, but got <%s>", reflect.TypeOf(r))
+	}
+}
+
+func AsBulkBytes(r Resp, err error) ([]byte, error) {
+	if err != nil {
+		return nil, err
+	}
+	x, ok := r.(*BulkBytes)
+	if ok && x != nil {
+		return x.Value, nil
+	} else {
+		return nil, errors.Errorf("expect BulkBytes, but got <%s>", reflect.TypeOf(r))
+	}
+}
+
+func AsInt(r Resp, err error) (int64, error) {
+	if err != nil {
+		return 0, err
+	}
+	x, ok := r.(*Int)
+	if ok && x != nil {
+		return x.Value, nil
+	} else {
+		return 0, errors.Errorf("expect Int, but got <%s>", reflect.TypeOf(r))
+	}
+}
+
+func AsArray(r Resp, err error) ([]Resp, error) {
+	if err != nil {
+		return nil, err
+	}
+	x, ok := r.(*Array)
+	if ok && x != nil {
+		return x.Value, nil
+	} else {
+		return nil, errors.Errorf("expect Array, but got <%s>", reflect.TypeOf(r))
+	}
+}
+
+func NewCommand(cmd string, args ...interface{}) Resp {
+	r := NewArray()
+	r.AppendBulkBytes([]byte(cmd))
+	for i := 0; i < len(args); i++ {
+		switch x := args[i].(type) {
+		case nil:
+			r.AppendBulkBytes(nil)
+		case string:
+			r.AppendBulkBytes([]byte(x))
+		case []byte:
+			r.AppendBulkBytes(x)
+		default:
+			r.AppendBulkBytes([]byte(fmt.Sprint(x)))
+		}
+	}
+	return r
 }

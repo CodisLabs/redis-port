@@ -9,18 +9,18 @@ import (
 	"os"
 	"sync"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/bytesize"
 	"github.com/wandoulabs/redis-port/pkg/libs/errors"
 )
 
 type buffer interface {
-	read(b []byte) (int, error)
-	write(b []byte) (int, error)
-	rclose() error
-	wclose() error
+	readSome(b []byte) (int, error)
+	writeSome(b []byte) (int, error)
 
 	buffered() int
 	available() int
+
+	rclose() error
+	wclose() error
 }
 
 type pipe struct {
@@ -61,11 +61,6 @@ func woffset(blen int, size, rpos, wpos uint64) (maxlen, offset uint64) {
 	return
 }
 
-const (
-	BuffSizeAlign = bytesize.KB * 4
-	FileSizeAlign = bytesize.MB * 4
-)
-
 func align(size, unit int) int {
 	if size < unit {
 		return unit
@@ -86,47 +81,78 @@ func newPipe(store buffer) (Reader, Writer) {
 func (p *pipe) Read(b []byte) (int, error) {
 	p.rl.Lock()
 	defer p.rl.Unlock()
+	var nn int
+	for {
+		n, err := p.readSome(b)
+		if err != nil {
+			return nn + n, err
+		}
+		nn, b = nn+n, b[n:]
+		if len(b) == 0 || nn != 0 {
+			return nn, nil
+		}
+	}
+}
 
+func (p *pipe) readSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	for {
-		if p.rerr != nil {
-			return 0, errors.Trace(io.ErrClosedPipe)
-		}
-		n, err := p.store.read(b)
-		if err != nil || n != 0 {
-			p.wwait.Signal()
-			return n, err
-		}
-		if p.werr != nil || len(b) == 0 {
-			return 0, p.werr
-		}
-		p.rwait.Wait()
+	if p.rerr != nil {
+		return 0, errors.Trace(io.ErrClosedPipe)
 	}
+	if len(b) == 0 {
+		if p.store.buffered() != 0 {
+			return 0, nil
+		}
+		return 0, p.werr
+	}
+	n, err := p.store.readSome(b)
+	if err != nil || n != 0 {
+		p.wwait.Signal()
+		return n, err
+	}
+	if p.werr != nil {
+		return 0, p.werr
+	}
+	p.rwait.Wait()
+	return 0, nil
 }
 
 func (p *pipe) Write(b []byte) (int, error) {
 	p.wl.Lock()
 	defer p.wl.Unlock()
+	var nn int
+	for {
+		n, err := p.writeSome(b)
+		if err != nil {
+			return nn + n, err
+		}
+		nn, b = nn+n, b[n:]
+		if len(b) == 0 {
+			return nn, nil
+		}
+	}
+}
 
+func (p *pipe) writeSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	for {
-		if p.werr != nil {
-			return 0, errors.Trace(io.ErrClosedPipe)
-		}
-		if p.rerr != nil || len(b) == 0 {
-			return 0, p.rerr
-		}
-		n, err := p.store.write(b)
-		if err != nil || n != 0 {
-			p.rwait.Signal()
-			return n, err
-		}
-		p.wwait.Wait()
+	if p.werr != nil {
+		return 0, errors.Trace(io.ErrClosedPipe)
 	}
+	if p.rerr != nil {
+		return 0, p.rerr
+	}
+	if len(b) == 0 {
+		return 0, nil
+	}
+	n, err := p.store.writeSome(b)
+	if err != nil || n != 0 {
+		p.rwait.Signal()
+		return n, err
+	}
+	p.wwait.Wait()
+	return 0, nil
 }
 
 func (p *pipe) RClose(err error) error {
@@ -163,11 +189,10 @@ func (p *pipe) Buffered() (int, error) {
 	if p.rerr != nil {
 		return 0, p.rerr
 	}
-	n := p.store.buffered()
-	if p.werr != nil && n == 0 {
-		return 0, p.werr
+	if n := p.store.buffered(); n != 0 {
+		return n, nil
 	}
-	return n, nil
+	return 0, p.werr
 }
 
 func (p *pipe) Available() (int, error) {
@@ -179,24 +204,19 @@ func (p *pipe) Available() (int, error) {
 	if p.rerr != nil {
 		return 0, p.rerr
 	}
-	n := p.store.available()
-	return n, nil
+	return p.store.available(), nil
 }
 
 func Pipe() (Reader, Writer) {
-	return newPipe(newMemBuffer(0))
+	return PipeSize(BuffSizeAlign)
 }
 
 func PipeSize(buffSize int) (Reader, Writer) {
 	return newPipe(newMemBuffer(buffSize))
 }
 
-func PipeFile(buffSize, fileSize int, f *os.File) (Reader, Writer) {
-	if f == nil {
-		return newPipe(newMemBuffer(buffSize))
-	} else {
-		return newPipe(newRFileBuffer(buffSize, fileSize, f))
-	}
+func PipeFile(fileSize int, f *os.File) (Reader, Writer) {
+	return newPipe(newFileBuffer(fileSize, f))
 }
 
 func OpenFile(fileName string, exclusive bool) (*os.File, error) {

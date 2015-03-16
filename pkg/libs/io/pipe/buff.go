@@ -3,6 +3,16 @@
 
 package pipe
 
+import (
+	"io"
+
+	"github.com/wandoulabs/redis-port/pkg/libs/errors"
+)
+
+const (
+	BuffSizeAlign = 1024 * 4
+)
+
 type memBuffer struct {
 	b    []byte
 	size uint64
@@ -12,13 +22,15 @@ type memBuffer struct {
 
 func newMemBuffer(buffSize int) *memBuffer {
 	n := align(buffSize, BuffSizeAlign)
-	b := make([]byte, n)
-	return &memBuffer{b: b, size: uint64(n)}
+	if n <= 0 {
+		panic("invalid pipe buffer size")
+	}
+	return &memBuffer{b: make([]byte, n), size: uint64(n)}
 }
 
-func (p *memBuffer) read(b []byte) (int, error) {
-	if len(b) == 0 {
-		return 0, nil
+func (p *memBuffer) readSome(b []byte) (int, error) {
+	if p.b == nil {
+		return 0, errors.Trace(io.ErrClosedPipe)
 	}
 	maxlen, offset := roffset(len(b), p.size, p.rpos, p.wpos)
 	if maxlen == 0 {
@@ -33,9 +45,9 @@ func (p *memBuffer) read(b []byte) (int, error) {
 	return n, nil
 }
 
-func (p *memBuffer) write(b []byte) (int, error) {
-	if len(b) == 0 {
-		return 0, nil
+func (p *memBuffer) writeSome(b []byte) (int, error) {
+	if p.b == nil {
+		return 0, errors.Trace(io.ErrClosedPipe)
 	}
 	maxlen, offset := woffset(len(b), p.size, p.rpos, p.wpos)
 	if maxlen == 0 {
@@ -47,14 +59,21 @@ func (p *memBuffer) write(b []byte) (int, error) {
 }
 
 func (p *memBuffer) buffered() int {
+	if p.b == nil {
+		return 0
+	}
 	return int(p.wpos - p.rpos)
 }
 
 func (p *memBuffer) available() int {
+	if p.b == nil {
+		return 0
+	}
 	return int(p.size + p.rpos - p.wpos)
 }
 
 func (p *memBuffer) rclose() error {
+	p.b = nil
 	return nil
 }
 

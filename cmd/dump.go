@@ -10,13 +10,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/counter"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
+	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
 	"github.com/wandoulabs/redis-port/pkg/libs/log"
 )
 
 type cmdDump struct {
-	ndump counter.Int64
 }
 
 func (cmd *cmdDump) Main() {
@@ -38,13 +36,13 @@ func (cmd *cmdDump) Main() {
 		dumpto = os.Stdout
 	}
 
-	master, nsize := cmd.SendCmd(from)
+	master, nsize := cmd.SendCmd(from, args.passwd)
 	defer master.Close()
 
 	log.Infof("rdb file = %d\n", nsize)
 
 	reader := bufio.NewReaderSize(master, ReaderBufferSize)
-	writer := bufio.NewWriterSize(ioutils.NewCountWriter(dumpto, &cmd.ndump), WriterBufferSize)
+	writer := bufio.NewWriterSize(dumpto, WriterBufferSize)
 
 	cmd.DumpRDBFile(reader, writer, nsize)
 
@@ -52,11 +50,11 @@ func (cmd *cmdDump) Main() {
 		return
 	}
 
-	cmd.DumpCommand(reader, writer)
+	cmd.DumpCommand(reader, writer, nsize)
 }
 
-func (cmd *cmdDump) SendCmd(master string) (net.Conn, int64) {
-	c, wait := openSyncConn(master)
+func (cmd *cmdDump) SendCmd(master, passwd string) (net.Conn, int64) {
+	c, wait := openSyncConn(master, passwd)
 	for {
 		select {
 		case nsize := <-wait:
@@ -72,16 +70,17 @@ func (cmd *cmdDump) SendCmd(master string) (net.Conn, int64) {
 }
 
 func (cmd *cmdDump) DumpRDBFile(reader *bufio.Reader, writer *bufio.Writer, nsize int64) {
-	var nread counter.Int64
+	var nread atomic2.Int64
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
 		p := make([]byte, WriterBufferSize)
 		for nsize != nread.Get() {
-			cnt := iocopy(reader, writer, p, int(nsize-nread.Get()))
-			nread.Add(int64(cnt))
+			nstep := int(nsize - nread.Get())
+			ncopy := int64(iocopy(reader, writer, p, nstep))
+			nread.Add(ncopy)
+			flushWriter(writer)
 		}
-		flushWriter(writer)
 	}()
 
 	for done := false; !done; {
@@ -97,17 +96,19 @@ func (cmd *cmdDump) DumpRDBFile(reader *bufio.Reader, writer *bufio.Writer, nsiz
 	log.Info("dump: rdb done")
 }
 
-func (cmd *cmdDump) DumpCommand(reader *bufio.Reader, writer *bufio.Writer) {
+func (cmd *cmdDump) DumpCommand(reader *bufio.Reader, writer *bufio.Writer, nsize int64) {
+	var nread atomic2.Int64
 	go func() {
 		p := make([]byte, ReaderBufferSize)
 		for {
-			iocopy(reader, writer, p, len(p))
+			ncopy := int64(iocopy(reader, writer, p, len(p)))
+			nread.Add(ncopy)
 			flushWriter(writer)
 		}
 	}()
 
 	for {
 		time.Sleep(time.Second)
-		log.Infof("dump: size = %d\n", cmd.ndump.Get())
+		log.Infof("dump: total = %d\n", nsize+nread.Get())
 	}
 }

@@ -13,9 +13,12 @@ import (
 	"time"
 
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
+	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
+	"github.com/wandoulabs/redis-port/pkg/libs/errors"
 	"github.com/wandoulabs/redis-port/pkg/libs/log"
+	"github.com/wandoulabs/redis-port/pkg/libs/stats"
 	"github.com/wandoulabs/redis-port/pkg/rdb"
+	"github.com/wandoulabs/redis-port/pkg/redis"
 )
 
 func openRedisConn(target string) redigo.Conn {
@@ -50,10 +53,27 @@ func openWriteFile(name string) *os.File {
 	return f
 }
 
-func openSyncConn(target string) (net.Conn, chan int64) {
+func authPassword(c net.Conn, passwd string) {
+	_, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("auth", passwd)))
+	if err != nil {
+		log.PanicError(errors.Trace(err), "write auth command failed")
+	}
+	var b = make([]byte, 5)
+	if _, err := io.ReadFull(c, b); err != nil {
+		log.PanicError(errors.Trace(err), "read auth response failed")
+	}
+	if strings.ToUpper(string(b)) != "+OK\r\n" {
+		log.Panic("auth failed")
+	}
+}
+
+func openSyncConn(target string, passwd string) (net.Conn, chan int64) {
 	c := openNetConn(target)
-	if _, err := ioutils.WriteFull(c, []byte("*1\r\n$4\r\nsync\r\n")); err != nil {
-		log.PanicError(err, "write sync command failed")
+	if passwd != "" {
+		authPassword(c, passwd)
+	}
+	if _, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("sync"))); err != nil {
+		log.PanicError(errors.Trace(err), "write sync command failed")
 	}
 	size := make(chan int64)
 	go func() {
@@ -126,8 +146,8 @@ func iocopy(r io.Reader, w io.Writer, p []byte, max int) int {
 	} else {
 		p = p[:n]
 	}
-	if _, err := ioutils.WriteFull(w, p); err != nil {
-		log.PanicError(err, "write full error")
+	if _, err := w.Write(p); err != nil {
+		log.PanicError(err, "write error")
 	}
 	return len(p)
 }
@@ -138,11 +158,11 @@ func flushWriter(w *bufio.Writer) {
 	}
 }
 
-func newRDBLoader(reader *bufio.Reader, size int) chan *rdb.BinEntry {
+func newRDBLoader(reader *bufio.Reader, rbytes *atomic2.Int64, size int) chan *rdb.BinEntry {
 	pipe := make(chan *rdb.BinEntry, size)
 	go func() {
 		defer close(pipe)
-		l := rdb.NewLoader(reader)
+		l := rdb.NewLoader(stats.NewCountReader(reader, rbytes))
 		if err := l.Header(); err != nil {
 			log.PanicError(err, "parse rdb header error")
 		}

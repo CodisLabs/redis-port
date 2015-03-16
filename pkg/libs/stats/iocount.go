@@ -1,22 +1,22 @@
 // Copyright 2014 Wandoujia Inc. All Rights Reserved.
 // Licensed under the MIT (MIT-LICENSE.txt) license.
 
-package ioutils
+package stats
 
 import (
 	"io"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/counter"
+	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
 )
 
 type CountReader struct {
-	p *counter.Int64
+	p *atomic2.Int64
 	r io.Reader
 }
 
-func NewCountReader(r io.Reader, p *counter.Int64) *CountReader {
+func NewCountReader(r io.Reader, p *atomic2.Int64) *CountReader {
 	if p == nil {
-		p = &counter.Int64{}
+		p = &atomic2.Int64{}
 	}
 	return &CountReader{p: p, r: r}
 }
@@ -26,7 +26,7 @@ func (r *CountReader) Count() int64 {
 }
 
 func (r *CountReader) ResetCounter() int64 {
-	return r.p.Reset()
+	return r.p.Swap(0)
 }
 
 func (r *CountReader) Read(p []byte) (int, error) {
@@ -36,13 +36,13 @@ func (r *CountReader) Read(p []byte) (int, error) {
 }
 
 type CountWriter struct {
-	p *counter.Int64
+	p *atomic2.Int64
 	w io.Writer
 }
 
-func NewCountWriter(w io.Writer, p *counter.Int64) *CountWriter {
+func NewCountWriter(w io.Writer, p *atomic2.Int64) *CountWriter {
 	if p == nil {
-		p = &counter.Int64{}
+		p = &atomic2.Int64{}
 	}
 	return &CountWriter{p: p, w: w}
 }
@@ -52,7 +52,7 @@ func (w *CountWriter) Count() int64 {
 }
 
 func (w *CountWriter) ResetCounter() int64 {
-	return w.p.Reset()
+	return w.p.Swap(0)
 }
 
 func (w *CountWriter) Write(p []byte) (int, error) {

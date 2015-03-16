@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	"github.com/wandoulabs/redis-port/pkg/libs/errors"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
 )
 
 const (
@@ -227,13 +226,13 @@ func (r *rdbReader) readFloat() (float64, error) {
 
 func (r *rdbReader) readByte() (byte, error) {
 	b := r.buf[:1]
-	_, err := ioutils.ReadFull(r, b)
-	return b[0], err
+	_, err := io.ReadFull(r, b)
+	return b[0], errors.Trace(err)
 }
 
 func (r *rdbReader) readFull(p []byte) error {
-	_, err := ioutils.ReadFull(r, p)
-	return err
+	_, err := io.ReadFull(r, p)
+	return errors.Trace(err)
 }
 
 func (r *rdbReader) readBytes(n int) ([]byte, error) {

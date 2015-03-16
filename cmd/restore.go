@@ -5,18 +5,40 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/counter"
-	"github.com/wandoulabs/redis-port/pkg/libs/io/ioutils"
+	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
 	"github.com/wandoulabs/redis-port/pkg/libs/log"
 	"github.com/wandoulabs/redis-port/pkg/redis"
 )
 
 type cmdRestore struct {
-	nread, nobjs counter.Int64
+	rbytes, ebytes, nentry, ignore atomic2.Int64
+
+	forward, nbypass atomic2.Int64
+}
+
+type cmdRestoreStat struct {
+	rbytes, ebytes, nentry, ignore int64
+
+	forward, nbypass int64
+}
+
+func (cmd *cmdRestore) Stat() *cmdRestoreStat {
+	return &cmdRestoreStat{
+		rbytes: cmd.rbytes.Get(),
+		ebytes: cmd.ebytes.Get(),
+		nentry: cmd.nentry.Get(),
+		ignore: cmd.ignore.Get(),
+
+		forward: cmd.forward.Get(),
+		nbypass: cmd.nbypass.Get(),
+	}
 }
 
 func (cmd *cmdRestore) Main() {
@@ -39,7 +61,7 @@ func (cmd *cmdRestore) Main() {
 		readin, nsize = os.Stdin, 0
 	}
 
-	reader := bufio.NewReaderSize(ioutils.NewCountReader(readin, &cmd.nread), ReaderBufferSize)
+	reader := bufio.NewReaderSize(readin, ReaderBufferSize)
 
 	cmd.RestoreRDBFile(reader, target, nsize)
 
@@ -47,15 +69,15 @@ func (cmd *cmdRestore) Main() {
 		return
 	}
 
-	if nsize != 0 && nsize == cmd.nread.Get() {
+	if nsize != 0 && nsize == cmd.rbytes.Get() {
 		return
 	}
 
-	cmd.RestoreCommand(reader, target, nsize)
+	cmd.RestoreCommand(reader, target)
 }
 
 func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize int64) {
-	pipe := newRDBLoader(reader, args.parallel*32)
+	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
@@ -70,14 +92,15 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize
 				var lastdb uint32 = 0
 				for e := range pipe {
 					if !acceptDB(e.DB) {
-						continue
+						cmd.ignore.Incr()
+					} else {
+						cmd.nentry.Incr()
+						if e.DB != lastdb {
+							lastdb = e.DB
+							selectDB(c, lastdb)
+						}
+						restoreRdbEntry(c, e)
 					}
-					if e.DB != lastdb {
-						lastdb = e.DB
-						selectDB(c, lastdb)
-					}
-					restoreRdbEntry(c, e)
-					cmd.nobjs.Incr()
 				}
 			}()
 		}
@@ -92,35 +115,44 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize
 			done = true
 		case <-time.After(time.Second):
 		}
-		n, o := cmd.nread.Get(), cmd.nobjs.Get()
+		stat := cmd.Stat()
+		var b bytes.Buffer
 		if nsize != 0 {
-			p := 100 * n / nsize
-			log.Infof("total = %d - %12d [%3d%%]  objs=%d\n", nsize, n, p, o)
+			fmt.Fprintf(&b, "total = %d - %12d [%3d%%]", nsize, stat.rbytes, 100*stat.rbytes/nsize)
 		} else {
-			log.Infof("total = %12d  objs=%d\n", n, o)
+			fmt.Fprintf(&b, "total = %12d", stat.rbytes)
 		}
+		fmt.Fprintf(&b, "  entry=%-12d", stat.nentry)
+		if stat.ignore != 0 {
+			fmt.Fprintf(&b, "  ignore=%-12d", stat.ignore)
+		}
+		log.Info(b.String())
 	}
 	log.Info("restore: rdb done")
 }
 
-func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string, nsize int64) {
-	var forward, nbypass counter.Int64
+func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string) {
 	c := openNetConn(slave)
 	defer c.Close()
 
 	writer := bufio.NewWriterSize(c, WriterBufferSize)
 	defer flushWriter(writer)
 
-	discard := bufio.NewReaderSize(c, ReaderBufferSize)
+	go func() {
+		p := make([]byte, ReaderBufferSize)
+		for {
+			iocopy(c, ioutil.Discard, p, len(p))
+		}
+	}()
 
 	go func() {
 		var bypass bool = false
 		for {
 			resp := redis.MustDecode(reader)
-			if cmd, args, err := redis.ParseArgs(resp); err != nil {
+			if scmd, args, err := redis.ParseArgs(resp); err != nil {
 				log.PanicError(err, "parse command arguments failed")
-			} else if cmd != "ping" {
-				if cmd == "select" {
+			} else if scmd != "ping" {
+				if scmd == "select" {
 					if len(args) != 1 {
 						log.Panicf("select command len(args) = %d", len(args))
 					}
@@ -132,21 +164,24 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string, nsize 
 					bypass = !acceptDB(uint32(n))
 				}
 				if bypass {
-					nbypass.Incr()
+					cmd.nbypass.Incr()
 					continue
 				}
 			}
+			cmd.forward.Incr()
 			redis.MustEncode(writer, resp)
 			flushWriter(writer)
-			forward.Incr()
-			redis.MustDecode(discard)
 		}
 	}()
 
-	for {
-		forward.Snapshot()
-		nbypass.Snapshot()
+	for lstat := cmd.Stat(); ; {
 		time.Sleep(time.Second)
-		log.Infof("restore: +forward=%-6d  +bypass=%-6d\n", forward.Delta(), nbypass.Delta())
+		nstat := cmd.Stat()
+		var b bytes.Buffer
+		fmt.Fprintf(&b, "restore: ")
+		fmt.Fprintf(&b, " +forward=%-6d", nstat.forward-lstat.forward)
+		fmt.Fprintf(&b, " +nbypass=%-6d", nstat.nbypass-lstat.nbypass)
+		log.Info(b.String())
+		lstat = nstat
 	}
 }

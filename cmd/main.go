@@ -21,8 +21,9 @@ var args struct {
 	parallel int
 
 	from   string
-	target string
 	extra  bool
+	target string
+	passwd string
 
 	sockfile string
 	filesize int64
@@ -59,9 +60,9 @@ func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET  [--extra]     [--faketime=FAKETIME] [--filterdb=DB]
-	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--output=OUTPUT] [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -70,6 +71,7 @@ Options:
 	-o OUTPUT, --output=OUTPUT        Set output file, default is stdout ('/dev/stdout').
 	-f MASTER, --from=MASTER          Set host:port of master redis.
 	-t TARGET, --target=TARGET        Set host:port of slave redis.
+	-P PASSWORD, --password=PASSWORD  Set redis auth password.
 	--faketime=FAKETIME               Set current system time to adjust key's expire time.
 	--sockfile=FILE                   Use FILE to as socket buffer, default is disabled.
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
@@ -107,8 +109,9 @@ Options:
 	args.input, _ = d["--input"].(string)
 	args.output, _ = d["--output"].(string)
 
-	args.target, _ = d["--target"].(string)
 	args.from, _ = d["--from"].(string)
+	args.target, _ = d["--target"].(string)
+	args.passwd, _ = d["--password"].(string)
 
 	args.extra, _ = d["--extra"].(bool)
 	args.sockfile, _ = d["--sockfile"].(string)

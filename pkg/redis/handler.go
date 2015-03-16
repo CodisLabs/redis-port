@@ -85,23 +85,47 @@ func createHandlerFunc(o interface{}, f *reflect.Value) (HandlerFunc, error) {
 }
 
 func ParseArgs(resp Resp) (cmd string, args [][]byte, err error) {
-	var array []Resp
-	if o, ok := resp.(*Array); !ok {
-		return "", nil, errors.Errorf("expect array, but got type = '%s'", resp.Type())
-	} else if o == nil || len(o.Value) == 0 {
-		return "", nil, errors.New("request is an empty array")
-	} else {
-		array = o.Value
+	a, err := AsArray(resp, nil)
+	if err != nil {
+		return "", nil, err
+	} else if len(a) == 0 {
+		return "", nil, errors.New("empty array")
 	}
-	slices := make([][]byte, 0, len(array))
-	for i, resp := range array {
-		if o, ok := resp.(*BulkBytes); !ok {
-			return "", nil, errors.Errorf("args[%d], expect bulkbytes, but got '%s'", i, resp.Type())
-		} else if i == 0 && len(o.Value) == 0 {
-			return "", nil, errors.New("command is empty")
+	bs := make([][]byte, len(a))
+	for i := 0; i < len(a); i++ {
+		b, err := AsBulkBytes(a[i], nil)
+		if err != nil {
+			return "", nil, err
 		} else {
-			slices = append(slices, o.Value)
+			bs[i] = b
 		}
 	}
-	return strings.ToLower(string(slices[0])), slices[1:], nil
+	cmd = strings.ToLower(string(bs[0]))
+	if cmd == "" {
+		return "", nil, errors.New("empty command")
+	}
+	return cmd, bs[1:], nil
+}
+
+func ParseIArgs(resp Resp) (cmd string, args []interface{}, err error) {
+	a, err := AsArray(resp, nil)
+	if err != nil {
+		return "", nil, err
+	} else if len(a) == 0 {
+		return "", nil, errors.New("empty array")
+	}
+	is := make([]interface{}, len(a))
+	for i := 0; i < len(a); i++ {
+		b, err := AsBulkBytes(a[i], nil)
+		if err != nil {
+			return "", nil, err
+		} else {
+			is[i] = b
+		}
+	}
+	cmd = strings.ToLower(string(is[0].([]byte)))
+	if cmd == "" {
+		return "", nil, errors.New("empty command")
+	}
+	return cmd, is[1:], nil
 }

@@ -11,15 +11,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/testing/assert"
+	"github.com/wandoulabs/redis-port/pkg/libs/assert"
 )
 
 func hexStringToObject(t *testing.T, s string) interface{} {
 	p, err := hex.DecodeString(strings.NewReplacer("\t", "", "\r", "", "\n", "", " ", "").Replace(s))
-	assert.ErrorIsNil(t, err)
+	assert.ErrorIsNil(err)
 	o, err := DecodeDump(p)
-	assert.ErrorIsNil(t, err)
-	assert.Must(t, o != nil)
+	assert.ErrorIsNil(err)
+	assert.Must(o != nil)
 	return o
 }
 
@@ -41,7 +41,7 @@ done
 func TestDecodeString(t *testing.T) {
 	docheck := func(hexs string, expect string) {
 		val := hexStringToObject(t, hexs).(String)
-		assert.Must(t, bytes.Equal([]byte(val), []byte(expect)))
+		assert.Must(bytes.Equal([]byte(val), []byte(expect)))
 	}
 	docheck("00c0010600b0958f3624542d6f", "1")
 	docheck("00c1ff0006004a42131348a52fa4", "255")
@@ -76,9 +76,9 @@ func TestDecodeListZipmap(t *testing.T) {
 		ff060052f7f617938b332a
 	`
 	val := hexStringToObject(t, s).(List)
-	assert.Must(t, len(val) == 32)
+	assert.Must(len(val) == 32)
 	for i := 0; i < len(val); i++ {
-		assert.Must(t, string(val[i]) == strconv.Itoa(i))
+		assert.Must(string(val[i]) == strconv.Itoa(i))
 	}
 }
 
@@ -96,9 +96,9 @@ func TestDecodeList(t *testing.T) {
 		c01f0600e87781cbebc997f5
 	`
 	val := hexStringToObject(t, s).(List)
-	assert.Must(t, len(val) == 32)
+	assert.Must(len(val) == 32)
 	for i := 0; i < len(val); i++ {
-		assert.Must(t, string(val[i]) == strconv.Itoa(i))
+		assert.Must(string(val[i]) == strconv.Itoa(i))
 	}
 }
 
@@ -116,15 +116,15 @@ func TestDecodeSet(t *testing.T) {
 		c00506007bd0a89270890016
 	`
 	val := hexStringToObject(t, s).(Set)
-	assert.Must(t, len(val) == 32)
+	assert.Must(len(val) == 32)
 	set := make(map[string]bool)
 	for _, mem := range val {
 		set[string(mem)] = true
 	}
-	assert.Must(t, len(val) == len(set))
+	assert.Must(len(val) == len(set))
 	for i := 0; i < 32; i++ {
 		_, ok := set[strconv.Itoa(i)]
-		assert.Must(t, ok)
+		assert.Must(ok)
 	}
 }
 
@@ -145,15 +145,15 @@ func TestDecodeHash(t *testing.T) {
 		0bc079c018c14002c011c12101c00cc19000c005c019060072320e870e10799d
 	`
 	val := hexStringToObject(t, s).(Hash)
-	assert.Must(t, len(val) == 32)
+	assert.Must(len(val) == 32)
 	hash := make(map[string]string)
 	for _, ent := range val {
 		hash[string(ent.Field)] = string(ent.Value)
 	}
-	assert.Must(t, len(val) == len(hash))
+	assert.Must(len(val) == len(hash))
 	for i := 0; i < 32; i++ {
 		s := strconv.Itoa(i)
-		assert.Must(t, hash[s] == strconv.Itoa(i*i))
+		assert.Must(hash[s] == strconv.Itoa(i*i))
 	}
 }
 
@@ -175,16 +175,16 @@ func TestDecodeZSet(t *testing.T) {
 		16
 	`
 	val := hexStringToObject(t, s).(ZSet)
-	assert.Must(t, len(val) == 32)
+	assert.Must(len(val) == 32)
 	zset := make(map[string]float64)
 	for _, ent := range val {
 		zset[string(ent.Member)] = ent.Score
 	}
-	assert.Must(t, len(val) == len(zset))
+	assert.Must(len(val) == len(zset))
 	for i := 0; i < 32; i++ {
 		s := strconv.Itoa(i)
 		score, ok := zset[s]
-		assert.Must(t, ok)
-		assert.Must(t, math.Abs(score+float64(i)) < 1e-10)
+		assert.Must(ok)
+		assert.Must(math.Abs(score+float64(i)) < 1e-10)
 	}
 }

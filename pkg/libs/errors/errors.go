@@ -61,7 +61,7 @@ func Errorf(format string, v ...interface{}) error {
 	}
 }
 
-func ErrorStack(err error) trace.Stack {
+func Stack(err error) trace.Stack {
 	if err == nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func ErrorStack(err error) trace.Stack {
 	return nil
 }
 
-func ErrorCause(err error) error {
+func Cause(err error) error {
 	for err != nil {
 		e, ok := err.(*Error)
 		if ok {
@@ -85,8 +85,8 @@ func ErrorCause(err error) error {
 }
 
 func Equal(err1, err2 error) bool {
-	e1 := ErrorCause(err1)
-	e2 := ErrorCause(err2)
+	e1 := Cause(err1)
+	e2 := Cause(err2)
 	if e1 == e2 {
 		return true
 	}

@@ -12,19 +12,19 @@ redis-port decode   [--ncpu=N]  [--input=INPUT]  [--output=OUTPUT]
 * **RESTORE** rdb file to target redis
 
 ```sh
-redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--extra]
+redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
 ```
 
 * **DUMP** rdb file from master redis
 
 ```sh
-redis-port dump     [--ncpu=N]   --from=MASTER   [--output=OUTPUT] [--extra]
+redis-port dump     [--ncpu=N]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
 ```
 
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER    --target=TARGET  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB]
+redis-port sync     [--ncpu=N]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]
 ```
 
 Options
@@ -49,13 +49,17 @@ Options
 
 > specify the slave redis (or target redis)
 
++ -P PASSWORD, --password=PASSWORD
+
+> specify the redis auth password
+
 + -e, --extra
 
 > dump or restore following redis backlog commands
 
 + --filterdb=DB
 
-> filter specifed db number, default is '*'
+> filter specifed db number, default value is '*'
 
 Examples
 -------
