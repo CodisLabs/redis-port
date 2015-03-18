@@ -5,7 +5,6 @@ package pipe
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"sync"
 
@@ -81,15 +80,13 @@ func newPipe(store buffer) (Reader, Writer) {
 func (p *pipe) Read(b []byte) (int, error) {
 	p.rl.Lock()
 	defer p.rl.Unlock()
-	var nn int
 	for {
 		n, err := p.readSome(b)
-		if err != nil {
-			return nn + n, err
+		if err != nil || n != 0 {
+			return n, err
 		}
-		nn, b = nn+n, b[n:]
-		if len(b) == 0 || nn != 0 {
-			return nn, nil
+		if len(b) == 0 {
+			return 0, nil
 		}
 	}
 }
@@ -207,28 +204,14 @@ func (p *pipe) Available() (int, error) {
 	return p.store.available(), nil
 }
 
-func Pipe() (Reader, Writer) {
-	return PipeSize(BuffSizeAlign)
+func New() (Reader, Writer) {
+	return NewSize(BuffSizeAlign)
 }
 
-func PipeSize(buffSize int) (Reader, Writer) {
+func NewSize(buffSize int) (Reader, Writer) {
 	return newPipe(newMemBuffer(buffSize))
 }
 
-func PipeFile(fileSize int, f *os.File) (Reader, Writer) {
+func NewFilePipe(fileSize int, f *os.File) (Reader, Writer) {
 	return newPipe(newFileBuffer(fileSize, f))
-}
-
-func OpenFile(fileName string, exclusive bool) (*os.File, error) {
-	flag := os.O_CREATE | os.O_RDWR | os.O_TRUNC
-	if exclusive {
-		flag |= os.O_EXCL
-	}
-	f, err := os.OpenFile(fileName, flag, 0600)
-	return f, errors.Trace(err)
-}
-
-func OpenTempFile(dir, prefix string) (*os.File, error) {
-	f, err := ioutil.TempFile(dir, prefix)
-	return f, errors.Trace(err)
 }

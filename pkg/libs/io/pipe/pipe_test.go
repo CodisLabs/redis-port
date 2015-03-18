@@ -21,11 +21,11 @@ func openPipe(t *testing.T, fileName string) (pr Reader, pw Writer, pf *os.File)
 	buffSize := 8192
 	fileSize := 1024 * 1024 * 32
 	if fileName == "" {
-		pr, pw = PipeSize(buffSize)
+		pr, pw = NewSize(buffSize)
 	} else {
-		f, err := OpenFile(fileName, false)
+		f, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
 		assert.ErrorIsNil(err)
-		pr, pw = PipeFile(fileSize, f)
+		pr, pw = NewFilePipe(fileSize, f)
 		pf = f
 	}
 	return
@@ -229,7 +229,7 @@ func delayClose(t *testing.T, closer Closer, c chan int, u pipeTest) {
 
 func TestPipeReadClose(t *testing.T) {
 	for _, u := range pipeTests {
-		r, w := Pipe()
+		r, w := New()
 		c := make(chan int, 1)
 
 		if u.async {
@@ -253,7 +253,7 @@ func TestPipeReadClose(t *testing.T) {
 }
 
 func TestPipeReadClose2(t *testing.T) {
-	r, w := Pipe()
+	r, w := New()
 	c := make(chan int, 1)
 
 	go delayClose(t, r, c, pipeTest{})
@@ -268,7 +268,7 @@ func TestPipeReadClose2(t *testing.T) {
 
 func TestPipeWriteClose(t *testing.T) {
 	for _, u := range pipeTests {
-		r, w := Pipe()
+		r, w := New()
 		c := make(chan int, 1)
 
 		if u.async {
@@ -290,7 +290,7 @@ func TestPipeWriteClose(t *testing.T) {
 }
 
 func TestWriteEmpty(t *testing.T) {
-	r, w := Pipe()
+	r, w := New()
 
 	go func() {
 		n, err := w.Write([]byte{})
@@ -309,7 +309,7 @@ func TestWriteEmpty(t *testing.T) {
 }
 
 func TestWriteNil(t *testing.T) {
-	r, w := Pipe()
+	r, w := New()
 
 	go func() {
 		n, err := w.Write(nil)
@@ -328,7 +328,7 @@ func TestWriteNil(t *testing.T) {
 }
 
 func TestWriteAfterWriterClose(t *testing.T) {
-	r, w := Pipe()
+	r, w := New()
 
 	s := "hello"
 
@@ -354,7 +354,7 @@ func TestWriteAfterWriterClose(t *testing.T) {
 }
 
 func TestWriteRead(t *testing.T) {
-	r, w := Pipe()
+	r, w := New()
 	p := make(chan []byte, 1)
 
 	go func() {

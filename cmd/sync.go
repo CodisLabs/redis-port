@@ -57,12 +57,8 @@ func (cmd *cmdSync) Main() {
 
 	var sockfile *os.File
 	if len(args.sockfile) != 0 {
-		f, err := pipe.OpenFile(args.sockfile, false)
-		if err != nil {
-			log.PanicError(err, "open sockbuff file failed")
-		}
-		defer f.Close()
-		sockfile = f
+		sockfile = openReadWriteFile(args.sockfile)
+		defer sockfile.Close()
 	}
 
 	master, nsize := cmd.SendCmd(from, args.passwd)
@@ -72,7 +68,7 @@ func (cmd *cmdSync) Main() {
 
 	var input io.Reader
 	if sockfile != nil {
-		r, w := pipe.PipeFile(int(args.filesize), sockfile)
+		r, w := pipe.NewFilePipe(int(args.filesize), sockfile)
 		defer r.Close()
 		go func() {
 			defer w.Close()

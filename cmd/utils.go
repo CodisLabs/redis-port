@@ -53,6 +53,14 @@ func openWriteFile(name string) *os.File {
 	return f
 }
 
+func openReadWriteFile(name string) *os.File {
+	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	if err != nil {
+		log.PanicErrorf(err, "cannot open file-readwriter '%s'", name)
+	}
+	return f
+}
+
 func authPassword(c net.Conn, passwd string) {
 	_, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("auth", passwd)))
 	if err != nil {
