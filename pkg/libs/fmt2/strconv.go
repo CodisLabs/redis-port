@@ -71,7 +71,7 @@ func ParseFloat64(i interface{}) (float64, error) {
 		case []byte:
 			s = string(x)
 		default:
-			return 0, errors.Errorf("parse float64 from '%s'", reflect.TypeOf(i))
+			return 0, errors.Errorf("parse float64 from <%s>", reflect.TypeOf(i))
 		}
 		f, err := strconv.ParseFloat(s, 64)
 		return f, errors.Trace(err)
@@ -111,7 +111,7 @@ func ParseInt64(i interface{}) (int64, error) {
 		case []byte:
 			s = string(x)
 		default:
-			return 0, errors.Errorf("parse int64 from '%s'", reflect.TypeOf(i))
+			return 0, errors.Errorf("parse int64 from <%s>", reflect.TypeOf(i))
 		}
 		v, err := strconv.ParseInt(s, 10, 64)
 		return v, errors.Trace(err)
@@ -151,7 +151,7 @@ func ParseUint64(i interface{}) (uint64, error) {
 		case []byte:
 			s = string(x)
 		default:
-			return 0, errors.Errorf("parse uint64 from '%s'", reflect.TypeOf(i))
+			return 0, errors.Errorf("parse uint64 from <%s>", reflect.TypeOf(i))
 		}
 		v, err := strconv.ParseUint(s, 10, 64)
 		return v, errors.Trace(err)
