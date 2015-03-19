@@ -36,29 +36,32 @@ func itos(i int64) string {
 	}
 }
 
-func Encode(w *bufio.Writer, r Resp) error {
+func Encode(w *bufio.Writer, r Resp, flush bool) error {
 	e := &encoder{w}
 	if err := e.encodeResp(r); err != nil {
 		return err
+	}
+	if !flush {
+		return nil
 	}
 	return errors.Trace(w.Flush())
 }
 
 func MustEncode(w *bufio.Writer, r Resp) {
-	if err := Encode(w, r); err != nil {
+	if err := Encode(w, r, true); err != nil {
 		log.PanicError(err, "encode redis resp failed")
 	}
 }
 
 func EncodeToBytes(r Resp) ([]byte, error) {
 	var b bytes.Buffer
-	err := Encode(bufio.NewWriter(&b), r)
+	err := Encode(bufio.NewWriter(&b), r, true)
 	return b.Bytes(), err
 }
 
 func EncodeToString(r Resp) (string, error) {
 	var b bytes.Buffer
-	err := Encode(bufio.NewWriter(&b), r)
+	err := Encode(bufio.NewWriter(&b), r, true)
 	return b.String(), err
 }
 
