@@ -192,6 +192,14 @@ func (r *Reader) IsValid() bool {
 	return r.seek >= rpos && r.seek <= wpos
 }
 
+func (r *Reader) Offset() uint64 {
+	return r.seek
+}
+
+func (r *Reader) SeekTo(seek uint64) {
+	r.seek = seek
+}
+
 func New() *Backlog {
 	return NewSize(BuffSizeAlign)
 }
