@@ -134,15 +134,6 @@ func (bl *Backlog) writeSome(b []byte) (int, error) {
 	return 0, nil
 }
 
-func (bl *Backlog) DataRange() (rpos, wpos uint64) {
-	bl.mu.Lock()
-	defer bl.mu.Unlock()
-	if bl.err != nil || bl.store == nil {
-		return 0, 0
-	}
-	return bl.store.dataRange()
-}
-
 func (bl *Backlog) Close() error {
 	return bl.CloseWithError(nil)
 }
@@ -161,6 +152,19 @@ func (bl *Backlog) CloseWithError(err error) error {
 		return bl.store.close()
 	}
 	return nil
+}
+
+func (bl *Backlog) DataRange() (rpos, wpos uint64, err error) {
+	bl.mu.Lock()
+	defer bl.mu.Unlock()
+	if bl.store == nil {
+		return 0, 0, errors.Trace(ErrClosedBacklog)
+	}
+	if bl.err != nil {
+		return 0, 0, bl.err
+	}
+	rpos, wpos = bl.store.dataRange()
+	return rpos, wpos, nil
 }
 
 func (bl *Backlog) NewReader() (*Reader, error) {
@@ -188,8 +192,8 @@ func (r *Reader) Read(b []byte) (int, error) {
 }
 
 func (r *Reader) IsValid() bool {
-	rpos, wpos := r.bl.DataRange()
-	return r.seek >= rpos && r.seek <= wpos
+	rpos, wpos, err := r.bl.DataRange()
+	return err == nil && r.seek >= rpos && r.seek <= wpos
 }
 
 func (r *Reader) Offset() uint64 {
