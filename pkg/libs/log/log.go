@@ -375,15 +375,16 @@ func (l *Logger) output(traceskip int, err error, t LogType, s string) error {
 		fmt.Fprint(&b, "\n")
 	}
 
-	if len(stack) != 0 {
-		fmt.Fprint(&b, "[stack]: \n", stack.StringWithIndent(1))
-	}
 	if err != nil {
 		fmt.Fprint(&b, "[error]: ", err.Error(), "\n")
 		if stack := errors.Stack(err); stack != nil {
 			fmt.Fprint(&b, stack.StringWithIndent(1))
 		}
 	}
+	if len(stack) != 0 {
+		fmt.Fprint(&b, "[stack]: \n", stack.StringWithIndent(1))
+	}
+
 	s = b.String()
 	l.mu.Lock()
 	defer l.mu.Unlock()
