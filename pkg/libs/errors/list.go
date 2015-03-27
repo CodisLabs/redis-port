@@ -52,3 +52,9 @@ func (q *ErrorList) PushBack(err error) {
 	q.el.PushBack(err)
 	q.mu.Unlock()
 }
+
+func (q *ErrorList) Reset() {
+	q.mu.Lock()
+	q.el.Init()
+	q.mu.Unlock()
+}
