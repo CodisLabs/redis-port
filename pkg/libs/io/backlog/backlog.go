@@ -191,17 +191,25 @@ func (r *Reader) Read(b []byte) (int, error) {
 	return n, err
 }
 
+func (r *Reader) DataRange() (rpos, wpos uint64, err error) {
+	return r.bl.DataRange()
+}
+
 func (r *Reader) IsValid() bool {
-	rpos, wpos, err := r.bl.DataRange()
-	return err == nil && r.seek >= rpos && r.seek <= wpos
+	rpos, wpos, err := r.DataRange()
+	if err != nil {
+		return false
+	}
+	return r.seek >= rpos && r.seek <= wpos
 }
 
 func (r *Reader) Offset() uint64 {
 	return r.seek
 }
 
-func (r *Reader) SeekTo(seek uint64) {
+func (r *Reader) SeekTo(seek uint64) bool {
 	r.seek = seek
+	return r.IsValid()
 }
 
 func New() *Backlog {
