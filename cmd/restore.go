@@ -163,7 +163,7 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				if bypass || (len(args) > 0 && !acceptKey(args[1])) {
+				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
 				}
