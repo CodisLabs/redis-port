@@ -135,7 +135,19 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 	}
 	s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
 	if err != nil {
-		log.PanicError(err, "restore command error")
+		if strings.Contains(err.Error(), "Target key name is busy") {
+			log.Infof("Target key %s is busy, try del first then restore", e.Key)
+
+			if _, err = c.Do("DEL", e.Key); err != nil {
+				log.Panicf("del %s in restore command err: %v", e.Key, err)
+			}
+
+			if s, err = redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value)); err != nil {
+				log.PanicError(err, "restore command error")
+			}
+		} else {
+			log.PanicError(err, "restore command error")
+		}
 	}
 	if s != "OK" {
 		log.Panicf("restore command response = '%s', should be 'OK'", s)
