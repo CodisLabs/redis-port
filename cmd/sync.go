@@ -189,7 +189,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, slave string) {
 				}
 				// Some commands like MSET may have multi keys, but we only use
 				// first for filter
-				if bypass || (len(args) > 0 && !acceptKey(args[1])) {
+				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
 				}
