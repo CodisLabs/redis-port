@@ -205,7 +205,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, slave string) {
 		fmt.Fprintf(&b, "sync: ")
 		fmt.Fprintf(&b, " +forward=%-6d", nstat.forward-lstat.forward)
 		fmt.Fprintf(&b, " +nbypass=%-6d", nstat.nbypass-lstat.nbypass)
-		fmt.Fprintf(&b, " +nbytes=%d", nstat.wbytes-lstat.rbytes)
+		fmt.Fprintf(&b, " +nbytes=%d", nstat.wbytes-lstat.wbytes)
 		log.Info(b.String())
 		lstat = nstat
 	}
