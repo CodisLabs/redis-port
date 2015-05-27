@@ -33,7 +33,7 @@ func (l *Loader) Header() error {
 		return err
 	}
 	if !bytes.Equal(header[:5], []byte("REDIS")) {
-		return errors.New("verify magic string, invalid file format")
+		return errors.Errorf("verify magic string, invalid file format")
 	}
 	if version, err := strconv.ParseInt(string(header[5:]), 10, 64); err != nil {
 		return errors.Trace(err)
@@ -48,7 +48,7 @@ func (l *Loader) Footer() error {
 	if crc2, err := l.readUint64(); err != nil {
 		return err
 	} else if crc1 != crc2 {
-		return errors.New("checksum validation failed")
+		return errors.Errorf("checksum validation failed")
 	}
 	return nil
 }

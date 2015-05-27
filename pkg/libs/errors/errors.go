@@ -21,19 +21,8 @@ func (e *Error) Error() string {
 	return e.Cause.Error()
 }
 
-func Static(s string) error {
-	return errors.New(s)
-}
-
 func New(s string) error {
-	err := errors.New(s)
-	if !TraceEnabled {
-		return err
-	}
-	return &Error{
-		Stack: trace.TraceN(1, 32),
-		Cause: err,
-	}
+	return errors.New(s)
 }
 
 func Trace(err error) error {

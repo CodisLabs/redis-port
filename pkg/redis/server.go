@@ -19,7 +19,7 @@ func NewServer(o interface{}) (*Server, error) {
 
 func NewServerWithTable(t HandlerTable) (*Server, error) {
 	if t == nil {
-		return nil, errors.New("handler table is nil")
+		return nil, errors.Errorf("handler table is nil")
 	}
 	return &Server{t}, nil
 }

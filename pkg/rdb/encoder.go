@@ -105,7 +105,7 @@ func (o Set) encodeValue(enc *rdb.Encoder) error {
 func EncodeDump(obj interface{}) ([]byte, error) {
 	o, ok := obj.(objectEncoder)
 	if !ok {
-		return nil, errors.New("unsupported object type")
+		return nil, errors.Errorf("unsupported object type")
 	}
 	var b bytes.Buffer
 	enc := rdb.NewEncoder(&b)
@@ -144,7 +144,7 @@ func (e *Encoder) EncodeFooter() error {
 func (e *Encoder) EncodeObject(db uint32, key []byte, expireat uint64, obj interface{}) error {
 	o, ok := obj.(objectEncoder)
 	if !ok {
-		return errors.New("unsupported object type")
+		return errors.Errorf("unsupported object type")
 	}
 	if e.db == -1 || uint32(e.db) != db {
 		e.db = int64(db)

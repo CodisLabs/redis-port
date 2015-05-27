@@ -17,7 +17,7 @@ type HandlerTable map[string]HandlerFunc
 
 func NewHandlerTable(o interface{}) (map[string]HandlerFunc, error) {
 	if o == nil {
-		return nil, errors.New("handler is nil")
+		return nil, errors.Errorf("handler is nil")
 	}
 	t := make(map[string]HandlerFunc)
 	r := reflect.TypeOf(o)
@@ -89,7 +89,7 @@ func ParseArgs(resp Resp) (cmd string, args [][]byte, err error) {
 	if err != nil {
 		return "", nil, err
 	} else if len(a) == 0 {
-		return "", nil, errors.New("empty array")
+		return "", nil, errors.Errorf("empty array")
 	}
 	bs := make([][]byte, len(a))
 	for i := 0; i < len(a); i++ {
@@ -102,7 +102,7 @@ func ParseArgs(resp Resp) (cmd string, args [][]byte, err error) {
 	}
 	cmd = strings.ToLower(string(bs[0]))
 	if cmd == "" {
-		return "", nil, errors.New("empty command")
+		return "", nil, errors.Errorf("empty command")
 	}
 	return cmd, bs[1:], nil
 }

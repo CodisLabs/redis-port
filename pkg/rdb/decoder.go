@@ -30,7 +30,7 @@ func (d *decoder) initObject(obj interface{}) {
 		return
 	}
 	if d.obj != nil {
-		d.err = errors.New("invalid object, init again")
+		d.err = errors.Errorf("invalid object, init again")
 	} else {
 		d.obj = obj
 	}
@@ -50,7 +50,7 @@ func (d *decoder) Hset(key, field, value []byte) {
 	}
 	switch h := d.obj.(type) {
 	default:
-		d.err = errors.New("invalid object, not a hashmap")
+		d.err = errors.Errorf("invalid object, not a hashmap")
 	case Hash:
 		v := &HashElement{Field: field, Value: value}
 		d.obj = append(h, v)
@@ -67,7 +67,7 @@ func (d *decoder) Sadd(key, member []byte) {
 	}
 	switch s := d.obj.(type) {
 	default:
-		d.err = errors.New("invalid object, not a set")
+		d.err = errors.Errorf("invalid object, not a set")
 	case Set:
 		d.obj = append(s, member)
 	}
@@ -83,7 +83,7 @@ func (d *decoder) Rpush(key, value []byte) {
 	}
 	switch l := d.obj.(type) {
 	default:
-		d.err = errors.New("invalid object, not a list")
+		d.err = errors.Errorf("invalid object, not a list")
 	case List:
 		d.obj = append(l, value)
 	}
@@ -99,7 +99,7 @@ func (d *decoder) Zadd(key []byte, score float64, member []byte) {
 	}
 	switch z := d.obj.(type) {
 	default:
-		d.err = errors.New("invalid object, not a zset")
+		d.err = errors.Errorf("invalid object, not a zset")
 	case ZSet:
 		v := &ZSetElement{Member: member, Score: score}
 		d.obj = append(z, v)

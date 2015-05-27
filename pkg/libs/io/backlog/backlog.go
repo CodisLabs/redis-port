@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrClosedBacklog = errors.Static("closed backlog")
-	ErrInvalidOffset = errors.Static("invalid offset")
+	ErrClosedBacklog = errors.New("closed backlog")
+	ErrInvalidOffset = errors.New("invalid offset")
 )
 
 type buffer interface {

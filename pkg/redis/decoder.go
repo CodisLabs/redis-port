@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	ErrBadRespCRLFEnd  = errors.Static("bad resp CRLF end")
-	ErrBadRespBytesLen = errors.Static("bad resp bytes len")
-	ErrBadRespArrayLen = errors.Static("bad resp array len")
+	ErrBadRespCRLFEnd  = errors.New("bad resp CRLF end")
+	ErrBadRespBytesLen = errors.New("bad resp bytes len")
+	ErrBadRespArrayLen = errors.New("bad resp array len")
 )
 
 type decoder struct {

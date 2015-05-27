@@ -197,7 +197,7 @@ func (r *rdbReader) readEncodedLength() (length uint32, encoded bool, err error)
 func (r *rdbReader) readLength() (uint32, error) {
 	length, encoded, err := r.readEncodedLength()
 	if err == nil && encoded {
-		err = errors.New("encoded-length")
+		err = errors.Errorf("encoded-length")
 	}
 	return length, err
 }
