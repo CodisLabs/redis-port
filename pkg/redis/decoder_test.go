@@ -39,7 +39,7 @@ func TestDecodeInvalidRequests(t *testing.T) {
 	}
 }
 
-func TestDecodeSimpleRequests1(t *testing.T) {
+func TestDecodeSimpleRequest1(t *testing.T) {
 	resp, err := DecodeFromBytes([]byte("\r\n"))
 	assert.MustNoError(err)
 	x, ok := resp.(*Array)
@@ -65,6 +65,14 @@ func TestDecodeSimpleRequest2(t *testing.T) {
 		assert.Must(ok && bytes.Equal(s1.Value, []byte("hello")))
 		s2, ok := x.Value[1].(*BulkBytes)
 		assert.Must(ok && bytes.Equal(s2.Value, []byte("world")))
+	}
+}
+
+func TestDecodeSimpleRequest3(t *testing.T) {
+	test := []string{"\r", "\n", " \n"}
+	for _, s := range test {
+		_, err := DecodeFromBytes([]byte(s))
+		assert.Must(err != nil)
 	}
 }
 

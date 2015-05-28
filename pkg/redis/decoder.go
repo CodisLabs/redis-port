@@ -79,7 +79,10 @@ func (d *decoder) decodeResp(depth int) (Resp, error) {
 		if depth != 0 {
 			return nil, errors.Errorf("bad resp type %s", t)
 		}
-		return d.decodeSingleLineBulkBytesArray(byte(t))
+		if err := d.r.UnreadByte(); err != nil {
+			return nil, errors.Trace(err)
+		}
+		return d.decodeSingleLineBulkBytesArray()
 	}
 }
 
@@ -154,15 +157,11 @@ func (d *decoder) decodeArray(depth int) ([]Resp, error) {
 	return a, nil
 }
 
-func (d *decoder) decodeSingleLineBulkBytesArray(first byte) (Resp, error) {
-	if first == '\n' {
-		return nil, errors.Trace(ErrBadRespCRLFEnd)
-	}
-	x, err := d.r.ReadBytes('\n')
+func (d *decoder) decodeSingleLineBulkBytesArray() (Resp, error) {
+	b, err := d.r.ReadBytes('\n')
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	b := append([]byte{first}, x...)
 	if n := len(b) - 2; n < 0 || b[n] != '\r' {
 		return nil, errors.Trace(ErrBadRespCRLFEnd)
 	} else {
