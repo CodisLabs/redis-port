@@ -34,9 +34,9 @@ func (t respType) String() string {
 		return "<array>"
 	default:
 		if c := uint8(t); c > 0x20 && c < 0x7F {
-			return fmt.Sprintf("<unknown-%c", c)
+			return fmt.Sprintf("<unknown-%c>", c)
 		} else {
-			return fmt.Sprintf("<unknown-0x%02x", c)
+			return fmt.Sprintf("<unknown-0x%02x>", c)
 		}
 	}
 }
