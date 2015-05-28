@@ -41,7 +41,7 @@ func TestDecodeInvalidRequests(t *testing.T) {
 
 func TestDecodeSimpleRequests1(t *testing.T) {
 	resp, err := DecodeFromBytes([]byte("\r\n"))
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	x, ok := resp.(*Array)
 	assert.Must(ok)
 	assert.Must(len(x.Value) == 0)
@@ -57,7 +57,7 @@ func TestDecodeSimpleRequest2(t *testing.T) {
 	}
 	for _, s := range test {
 		resp, err := DecodeFromBytes([]byte(s))
-		assert.ErrorIsNil(err)
+		assert.MustNoError(err)
 		x, ok := resp.(*Array)
 		assert.Must(ok)
 		assert.Must(len(x.Value) == 2)
@@ -71,7 +71,7 @@ func TestDecodeSimpleRequest2(t *testing.T) {
 func TestDecodeBulkBytes(t *testing.T) {
 	test := "*2\r\n$4\r\nLLEN\r\n$6\r\nmylist\r\n"
 	resp, err := DecodeFromBytes([]byte(test))
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	x, ok := resp.(*Array)
 	assert.Must(ok)
 	assert.Must(len(x.Value) == 2)
@@ -99,6 +99,6 @@ func TestDecoder(t *testing.T) {
 	}
 	for _, s := range test {
 		_, err := DecodeFromBytes([]byte(s))
-		assert.ErrorIsNil(err)
+		assert.MustNoError(err)
 	}
 }

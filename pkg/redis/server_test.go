@@ -40,7 +40,7 @@ func testmapcount(t *testing.T, m1, m2 map[string]int) {
 func TestHandlerFunc(t *testing.T) {
 	h := &testHandler{make(map[string]int)}
 	s, err := NewServer(h)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	key1, key2, key3, key4 := "key1", "key2", "key3", "key4"
 	s.t["get"](nil)
 	testmapcount(t, h.c, map[string]int{})
@@ -59,10 +59,10 @@ func TestHandlerFunc(t *testing.T) {
 func TestServerServe(t *testing.T) {
 	h := &testHandler{make(map[string]int)}
 	s, err := NewServer(h)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	resp, err := Decode(bufio.NewReader(bytes.NewReader([]byte("*2\r\n$3\r\nset\r\n$3\r\nfoo\r\n"))))
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	_, err = s.Dispatch(nil, resp)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	testmapcount(t, h.c, map[string]int{"foo": 1})
 }

@@ -12,7 +12,7 @@ func Must(b bool) {
 	log.Panic("assertion failed")
 }
 
-func ErrorIsNil(err error) {
+func MustNoError(err error) {
 	if err == nil {
 		return
 	}

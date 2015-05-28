@@ -17,15 +17,15 @@ import (
 
 func DecodeHexRdb(t *testing.T, s string, n int) map[string]*BinEntry {
 	p, err := hex.DecodeString(strings.NewReplacer("\t", "", "\r", "", "\n", "", " ", "").Replace(s))
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	r := bytes.NewReader(p)
 	l := NewLoader(r)
-	assert.ErrorIsNil(l.Header())
+	assert.MustNoError(l.Header())
 	entries := make(map[string]*BinEntry)
 	var i int = 0
 	for {
 		e, err := l.NextBinEntry()
-		assert.ErrorIsNil(err)
+		assert.MustNoError(err)
 		if e == nil {
 			break
 		}
@@ -33,7 +33,7 @@ func DecodeHexRdb(t *testing.T, s string, n int) map[string]*BinEntry {
 		entries[string(e.Key)] = e
 		i++
 	}
-	assert.ErrorIsNil(l.Footer())
+	assert.MustNoError(l.Footer())
 	assert.Must(r.Len() == 0)
 	assert.Must(len(entries) == i && i == n)
 	return entries
@@ -43,7 +43,7 @@ func getobj(t *testing.T, entries map[string]*BinEntry, key string) (*BinEntry, 
 	e := entries[key]
 	assert.Must(e != nil)
 	o, err := DecodeDump(e.Value)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	return e, o
 }
 

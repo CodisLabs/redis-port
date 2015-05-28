@@ -63,6 +63,6 @@ func TestEncodeArray(t *testing.T) {
 
 func testEncodeAndCheck(t *testing.T, resp Resp, expect []byte) {
 	b, err := EncodeToBytes(resp)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	assert.Must(bytes.Equal(b, expect))
 }

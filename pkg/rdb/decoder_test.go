@@ -16,9 +16,9 @@ import (
 
 func hexStringToObject(t *testing.T, s string) interface{} {
 	p, err := hex.DecodeString(strings.NewReplacer("\t", "", "\r", "", "\n", "", " ", "").Replace(s))
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	o, err := DecodeDump(p)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	assert.Must(o != nil)
 	return o
 }

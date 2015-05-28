@@ -17,20 +17,20 @@ import (
 
 func openFile(fileName string) *os.File {
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	return f
 }
 
 func checkWriter(bl *Backlog, b []byte) {
 	n, err := bl.Write(b)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	assert.Must(n == len(b))
 }
 
 func checkReader(r io.Reader, b []byte) {
 	x := make([]byte, len(b))
 	n, err := io.ReadFull(r, x)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	assert.Must(n == len(b) && bytes.Equal(x, b))
 }
 
@@ -47,7 +47,7 @@ func testBacklog(t *testing.T, bl *Backlog, size int) {
 	input := randSlice(32)
 
 	r1, err := bl.NewReader()
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 
 	checkWriter(bl, input)
 	checkReader(r1, input)
@@ -61,7 +61,7 @@ func testBacklog(t *testing.T, bl *Backlog, size int) {
 	assert.Must(r1.IsValid() == true)
 
 	r2, err := bl.NewReader()
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 
 	input = []byte{0xde, 0xad, 0xbe, 0xef}
 	checkWriter(bl, input)
@@ -73,7 +73,7 @@ func testBacklog(t *testing.T, bl *Backlog, size int) {
 
 	b := make([]byte, len(input))
 	n, err := io.ReadFull(r2, b)
-	assert.ErrorIsNil(err)
+	assert.MustNoError(err)
 	assert.Must(n == len(b) && bytes.Equal(b, input))
 
 	bl.Close()
