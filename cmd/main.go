@@ -4,6 +4,7 @@
 package main
 
 import (
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -56,13 +57,19 @@ var acceptDB = func(db uint32) bool {
 	return db >= MinDB && db <= MaxDB
 }
 
+var acceptKey = func(key []byte) bool {
+	return true
+}
+
+var restoreCmd = "slotsrestore"
+
 func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB] [--filterkeys=keys] [--restorecmd=slotsrestore]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--filterkeys=keys] [--restorecmd=slotsrestore]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -77,6 +84,8 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+	--filterkeys=keys                 Filter key in keys, keys is seperated by comma and supports regular expression.
+	--restorecmd=slotsrestore		  Restore command, slotsrestore for codis, restore for redis.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
 	if err != nil {
@@ -148,6 +157,32 @@ Options:
 		acceptDB = func(db uint32) bool {
 			return db == u
 		}
+	}
+
+	if s, ok := d["--filterkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --filterkeys failed")
+			}
+		}
+
+		acceptKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
+	}
+
+	if s, ok := d["--restorecmd"].(string); ok && s != "" {
+		restoreCmd = s
 	}
 
 	if s, ok := d["--filesize"].(string); ok && s != "" {

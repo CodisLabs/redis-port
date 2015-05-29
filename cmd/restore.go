@@ -91,7 +91,7 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize
 				defer c.Close()
 				var lastdb uint32 = 0
 				for e := range pipe {
-					if !acceptDB(e.DB) {
+					if !acceptDB(e.DB) || !acceptKey(e.Key) {
 						cmd.ignore.Incr()
 					} else {
 						cmd.nentry.Incr()
@@ -163,10 +163,11 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				if bypass {
+				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
 				}
+
 			}
 			cmd.forward.Incr()
 			redis.MustEncode(writer, resp)
