@@ -141,7 +141,7 @@ func (cmd *cmdSync) SendPSyncCmd(master, passwd string) (pipe.Reader, int64) {
 				log.PanicErrorf(err, "psync runid = %s, offset = %d, pipe is broken", runid, offset)
 			}
 			offset += n
-			for i := 1; ; i++ {
+			for {
 				time.Sleep(time.Second)
 				c = openNetConnSoft(master)
 				if c != nil {
