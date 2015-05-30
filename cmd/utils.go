@@ -33,6 +33,14 @@ func openNetConn(target string) net.Conn {
 	return c
 }
 
+func openNetConnSoft(target string) net.Conn {
+	c, err := net.Dial("tcp", target)
+	if err != nil {
+		return nil
+	}
+	return c
+}
+
 func openReadFile(name string) (*os.File, int64) {
 	f, err := os.Open(name)
 	if err != nil {
@@ -62,6 +70,9 @@ func openReadWriteFile(name string) *os.File {
 }
 
 func authPassword(c net.Conn, passwd string) {
+	if passwd == "" {
+		return
+	}
 	_, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("auth", passwd)))
 	if err != nil {
 		log.PanicError(errors.Trace(err), "write auth command failed")
@@ -75,20 +86,27 @@ func authPassword(c net.Conn, passwd string) {
 	}
 }
 
-func openSyncConn(target string, passwd string) (net.Conn, chan int64) {
+func openAuthConn(target string, passwd string) net.Conn {
 	c := openNetConn(target)
-	if passwd != "" {
-		authPassword(c, passwd)
-	}
+	authPassword(c, passwd)
+	return c
+}
+
+func openSyncConn(target string, passwd string) (net.Conn, <-chan int64) {
+	c := openAuthConn(target, passwd)
 	if _, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("sync"))); err != nil {
 		log.PanicError(errors.Trace(err), "write sync command failed")
 	}
+	return c, waitRdbDump(c)
+}
+
+func waitRdbDump(r io.Reader) <-chan int64 {
 	size := make(chan int64)
 	go func() {
 		var rsp string
 		for {
 			b := []byte{0}
-			if _, err := c.Read(b); err != nil {
+			if _, err := r.Read(b); err != nil {
 				log.PanicErrorf(err, "read sync response = '%s'", rsp)
 			}
 			if len(rsp) == 0 && b[0] == '\n' {
@@ -109,7 +127,48 @@ func openSyncConn(target string, passwd string) (net.Conn, chan int64) {
 		}
 		size <- int64(n)
 	}()
-	return c, size
+	return size
+}
+
+func sendPSyncFullsync(br *bufio.Reader, bw *bufio.Writer) (string, int64, <-chan int64) {
+	cmd := redis.NewCommand("psync", "?", -1)
+	if err := redis.Encode(bw, cmd, true); err != nil {
+		log.PanicError(err, "write psync command failed, fullsync")
+	}
+	x, err := redis.AsString(redis.Decode(br))
+	if err != nil {
+		log.PanicError(err, "invalid psync response, fullsync")
+	}
+	xx := strings.Split(x, " ")
+	if len(xx) != 3 || strings.ToLower(xx[0]) != "fullresync" {
+		log.Panicf("invalid psync response = '%s', should be fullsync", x)
+	}
+	v, err := strconv.ParseInt(xx[2], 10, 64)
+	if err != nil {
+		log.PanicError(err, "parse psync offset failed")
+	}
+	runid, offset := xx[1], v-1
+	return runid, offset, waitRdbDump(br)
+}
+
+func sendPSyncContinue(br *bufio.Reader, bw *bufio.Writer, runid string, offset int64) {
+	cmd := redis.NewCommand("psync", runid, offset+2)
+	if err := redis.Encode(bw, cmd, true); err != nil {
+		log.PanicError(err, "write psync command failed, continue")
+	}
+	x, err := redis.AsString(redis.Decode(br))
+	if err != nil {
+		log.PanicError(err, "invalid psync response, continue")
+	}
+	xx := strings.Split(x, " ")
+	if len(xx) != 1 || strings.ToLower(xx[0]) != "continue" {
+		log.Panicf("invalid psync response = '%s', should be continue", x)
+	}
+}
+
+func sendPSyncAck(bw *bufio.Writer, offset int64) error {
+	cmd := redis.NewCommand("replconf", "ack", offset)
+	return redis.Encode(bw, cmd, true)
 }
 
 func selectDB(c redigo.Conn, db uint32) {

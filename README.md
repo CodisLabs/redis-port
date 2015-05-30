@@ -24,7 +24,7 @@ redis-port dump     [--ncpu=N]   --from=MASTER   [--output=OUTPUT]  [--password=
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]
+redis-port sync     [--ncpu=N]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
 ```
 
 Options

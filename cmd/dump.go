@@ -55,18 +55,18 @@ func (cmd *cmdDump) Main() {
 
 func (cmd *cmdDump) SendCmd(master, passwd string) (net.Conn, int64) {
 	c, wait := openSyncConn(master, passwd)
-	for {
+	var nsize int64
+	for nsize == 0 {
 		select {
-		case nsize := <-wait:
+		case nsize = <-wait:
 			if nsize == 0 {
 				log.Info("+")
-			} else {
-				return c, nsize
 			}
 		case <-time.After(time.Second):
 			log.Info("-")
 		}
 	}
+	return c, nsize
 }
 
 func (cmd *cmdDump) DumpRDBFile(reader *bufio.Reader, writer *bufio.Writer, nsize int64) {

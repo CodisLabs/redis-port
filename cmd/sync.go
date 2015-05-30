@@ -61,25 +61,28 @@ func (cmd *cmdSync) Main() {
 		defer sockfile.Close()
 	}
 
-	master, nsize := cmd.SendCmd(from, args.passwd)
-	defer master.Close()
+	var input io.ReadCloser
+	var nsize int64
+	if args.psync {
+		input, nsize = cmd.SendPSyncCmd(from, args.passwd)
+	} else {
+		input, nsize = cmd.SendSyncCmd(from, args.passwd)
+	}
+	defer input.Close()
 
 	log.Infof("rdb file = %d\n", nsize)
 
-	var input io.Reader
 	if sockfile != nil {
 		r, w := pipe.NewFilePipe(int(args.filesize), sockfile)
 		defer r.Close()
-		go func() {
+		go func(r io.Reader) {
 			defer w.Close()
 			p := make([]byte, ReaderBufferSize)
 			for {
-				iocopy(master, w, p, len(p))
+				iocopy(r, w, p, len(p))
 			}
-		}()
+		}(input)
 		input = r
-	} else {
-		input = master
 	}
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
@@ -88,7 +91,7 @@ func (cmd *cmdSync) Main() {
 	cmd.SyncCommand(reader, target)
 }
 
-func (cmd *cmdSync) SendCmd(master, passwd string) (net.Conn, int64) {
+func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
 	c, wait := openSyncConn(master, passwd)
 	for {
 		select {
@@ -101,6 +104,85 @@ func (cmd *cmdSync) SendCmd(master, passwd string) (net.Conn, int64) {
 		case <-time.After(time.Second):
 			log.Info("-")
 		}
+	}
+}
+
+func (cmd *cmdSync) SendPSyncCmd(master, passwd string) (pipe.Reader, int64) {
+	c := openAuthConn(master, passwd)
+	br := bufio.NewReaderSize(c, ReaderBufferSize)
+	bw := bufio.NewWriterSize(c, WriterBufferSize)
+
+	runid, offset, wait := sendPSyncFullsync(br, bw)
+	log.Infof("psync runid = %s offset = %d, fullsync", runid, offset)
+
+	var nsize int64
+	for nsize == 0 {
+		select {
+		case nsize = <-wait:
+			if nsize == 0 {
+				log.Info("+")
+			}
+		case <-time.After(time.Second):
+			log.Info("-")
+		}
+	}
+
+	piper, pipew := pipe.NewSize(ReaderBufferSize)
+
+	go func() {
+		defer pipew.Close()
+		p := make([]byte, 8192)
+		for rdbsize := int(nsize); rdbsize != 0; {
+			rdbsize -= iocopy(br, pipew, p, rdbsize)
+		}
+		for {
+			n, err := cmd.PSyncPipeCopy(c, br, bw, offset, pipew)
+			if err != nil {
+				log.PanicErrorf(err, "psync runid = %s, offset = %d, pipe is broken", runid, offset)
+			}
+			offset += n
+			for i := 1; ; i++ {
+				time.Sleep(time.Second)
+				c = openNetConnSoft(master)
+				if c != nil {
+					log.Infof("psync reopen connection, offset = %d", offset)
+					break
+				} else {
+					log.Infof("psync reopen connection, failed")
+				}
+			}
+			authPassword(c, passwd)
+			br = bufio.NewReaderSize(c, ReaderBufferSize)
+			bw = bufio.NewWriterSize(c, WriterBufferSize)
+			sendPSyncContinue(br, bw, runid, offset)
+		}
+	}()
+	return piper, nsize
+}
+
+func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer, offset int64, copyto io.Writer) (int64, error) {
+	defer c.Close()
+	var nread atomic2.Int64
+	go func() {
+		defer c.Close()
+		for {
+			time.Sleep(time.Second * 5)
+			if err := sendPSyncAck(bw, offset+nread.Get()); err != nil {
+				return
+			}
+		}
+	}()
+
+	var p = make([]byte, 8192)
+	for {
+		n, err := br.Read(p)
+		if err != nil {
+			return nread.Get(), nil
+		}
+		if _, err := copyto.Write(p[:n]); err != nil {
+			return nread.Get(), err
+		}
+		nread.Add(int64(n))
 	}
 }
 

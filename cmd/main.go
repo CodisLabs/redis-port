@@ -29,6 +29,7 @@ var args struct {
 	filesize int64
 
 	shift time.Duration
+	psync bool
 }
 
 const (
@@ -62,7 +63,7 @@ Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
 	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -77,6 +78,7 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
 	if err != nil {
@@ -114,6 +116,7 @@ Options:
 	args.passwd, _ = d["--password"].(string)
 
 	args.extra, _ = d["--extra"].(bool)
+	args.psync, _ = d["--psync"].(bool)
 	args.sockfile, _ = d["--sockfile"].(string)
 
 	if s, ok := d["--faketime"].(string); ok && s != "" {
