@@ -21,9 +21,10 @@ var args struct {
 	parallel int
 
 	from   string
-	extra  bool
-	target string
 	passwd string
+	auth   string
+	target string
+	extra  bool
 
 	sockfile string
 	filesize int64
@@ -61,9 +62,9 @@ func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
-	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -73,6 +74,7 @@ Options:
 	-f MASTER, --from=MASTER          Set host:port of master redis.
 	-t TARGET, --target=TARGET        Set host:port of slave redis.
 	-P PASSWORD, --password=PASSWORD  Set redis auth password.
+	-A AUTH, --auth=AUTH              Set auth password for target.
 	--faketime=FAKETIME               Set current system time to adjust key's expire time.
 	--sockfile=FILE                   Use FILE to as socket buffer, default is disabled.
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
@@ -112,8 +114,9 @@ Options:
 	args.output, _ = d["--output"].(string)
 
 	args.from, _ = d["--from"].(string)
-	args.target, _ = d["--target"].(string)
 	args.passwd, _ = d["--password"].(string)
+	args.auth, _ = d["--auth"].(string)
+	args.target, _ = d["--target"].(string)
 
 	args.extra, _ = d["--extra"].(bool)
 	args.psync, _ = d["--psync"].(bool)

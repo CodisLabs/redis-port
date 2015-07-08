@@ -63,7 +63,7 @@ func (cmd *cmdRestore) Main() {
 
 	reader := bufio.NewReaderSize(readin, ReaderBufferSize)
 
-	cmd.RestoreRDBFile(reader, target, nsize)
+	cmd.RestoreRDBFile(reader, target, args.auth, nsize)
 
 	if !args.extra {
 		return
@@ -73,10 +73,10 @@ func (cmd *cmdRestore) Main() {
 		return
 	}
 
-	cmd.RestoreCommand(reader, target)
+	cmd.RestoreCommand(reader, target, args.auth)
 }
 
-func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize int64) {
+func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd string, nsize int64) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -87,7 +87,7 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize
 				defer func() {
 					group <- 0
 				}()
-				c := openRedisConn(target)
+				c := openRedisConn(target, passwd)
 				defer c.Close()
 				var lastdb uint32 = 0
 				for e := range pipe {
@@ -131,8 +131,8 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target string, nsize
 	log.Info("restore: rdb done")
 }
 
-func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, slave string) {
-	c := openNetConn(slave)
+func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, target, passwd string) {
+	c := openNetConn(target, passwd)
 	defer c.Close()
 
 	writer := bufio.NewWriterSize(c, WriterBufferSize)

@@ -21,23 +21,25 @@ import (
 	"github.com/wandoulabs/redis-port/pkg/redis"
 )
 
-func openRedisConn(target string) redigo.Conn {
-	return redigo.NewConn(openNetConn(target), 0, 0)
+func openRedisConn(target, passwd string) redigo.Conn {
+	return redigo.NewConn(openNetConn(target, passwd), 0, 0)
 }
 
-func openNetConn(target string) net.Conn {
+func openNetConn(target, passwd string) net.Conn {
 	c, err := net.Dial("tcp", target)
 	if err != nil {
 		log.PanicErrorf(err, "cannot connect to '%s'", target)
 	}
+	authPassword(c, passwd)
 	return c
 }
 
-func openNetConnSoft(target string) net.Conn {
+func openNetConnSoft(target, passwd string) net.Conn {
 	c, err := net.Dial("tcp", target)
 	if err != nil {
 		return nil
 	}
+	authPassword(c, passwd)
 	return c
 }
 
@@ -86,14 +88,8 @@ func authPassword(c net.Conn, passwd string) {
 	}
 }
 
-func openAuthConn(target string, passwd string) net.Conn {
-	c := openNetConn(target)
-	authPassword(c, passwd)
-	return c
-}
-
 func openSyncConn(target string, passwd string) (net.Conn, <-chan int64) {
-	c := openAuthConn(target, passwd)
+	c := openNetConn(target, passwd)
 	if _, err := c.Write(redis.MustEncodeToBytes(redis.NewCommand("sync"))); err != nil {
 		log.PanicError(errors.Trace(err), "write sync command failed")
 	}
@@ -135,7 +131,14 @@ func sendPSyncFullsync(br *bufio.Reader, bw *bufio.Writer) (string, int64, <-cha
 	if err := redis.Encode(bw, cmd, true); err != nil {
 		log.PanicError(err, "write psync command failed, fullsync")
 	}
-	x, err := redis.AsString(redis.Decode(br))
+	r, err := redis.Decode(br)
+	if err != nil {
+		log.PanicError(err, "invalid psync response, fullsync")
+	}
+	if e, ok := r.(*redis.Error); ok {
+		log.Panicf("invalid psync response, fullsync, %s", e.Value)
+	}
+	x, err := redis.AsString(r, nil)
 	if err != nil {
 		log.PanicError(err, "invalid psync response, fullsync")
 	}
@@ -156,7 +159,14 @@ func sendPSyncContinue(br *bufio.Reader, bw *bufio.Writer, runid string, offset 
 	if err := redis.Encode(bw, cmd, true); err != nil {
 		log.PanicError(err, "write psync command failed, continue")
 	}
-	x, err := redis.AsString(redis.Decode(br))
+	r, err := redis.Decode(br)
+	if err != nil {
+		log.PanicError(err, "invalid psync response, continue")
+	}
+	if e, ok := r.(*redis.Error); ok {
+		log.Panicf("invalid psync response, continue, %s", e.Value)
+	}
+	x, err := redis.AsString(r, nil)
 	if err != nil {
 		log.PanicError(err, "invalid psync response, continue")
 	}

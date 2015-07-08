@@ -87,8 +87,8 @@ func (cmd *cmdSync) Main() {
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
 
-	cmd.SyncRDBFile(reader, target, nsize)
-	cmd.SyncCommand(reader, target)
+	cmd.SyncRDBFile(reader, target, args.auth, nsize)
+	cmd.SyncCommand(reader, target, args.auth)
 }
 
 func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
@@ -108,7 +108,7 @@ func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
 }
 
 func (cmd *cmdSync) SendPSyncCmd(master, passwd string) (pipe.Reader, int64) {
-	c := openAuthConn(master, passwd)
+	c := openNetConn(master, passwd)
 	br := bufio.NewReaderSize(c, ReaderBufferSize)
 	bw := bufio.NewWriterSize(c, WriterBufferSize)
 
@@ -143,7 +143,7 @@ func (cmd *cmdSync) SendPSyncCmd(master, passwd string) (pipe.Reader, int64) {
 			offset += n
 			for {
 				time.Sleep(time.Second)
-				c = openNetConnSoft(master)
+				c = openNetConnSoft(master, passwd)
 				if c != nil {
 					log.Infof("psync reopen connection, offset = %d", offset)
 					break
@@ -186,7 +186,7 @@ func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer
 	}
 }
 
-func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, slave string, nsize int64) {
+func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -197,7 +197,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, slave string, nsize int64)
 				defer func() {
 					group <- 0
 				}()
-				c := openRedisConn(slave)
+				c := openRedisConn(target, passwd)
 				defer c.Close()
 				var lastdb uint32 = 0
 				for e := range pipe {
@@ -237,8 +237,8 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, slave string, nsize int64)
 	log.Info("sync rdb done")
 }
 
-func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, slave string) {
-	c := openNetConn(slave)
+func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
+	c := openNetConn(target, passwd)
 	defer c.Close()
 
 	writer := bufio.NewWriterSize(stats.NewCountWriter(c, &cmd.wbytes), WriterBufferSize)

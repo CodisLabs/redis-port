@@ -12,19 +12,19 @@ redis-port decode   [--ncpu=N]  [--input=INPUT]  [--output=OUTPUT]
 * **RESTORE** rdb file to target redis
 
 ```sh
-redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
 ```
 
 * **DUMP** rdb file from master redis
 
 ```sh
-redis-port dump     [--ncpu=N]   --from=MASTER   [--output=OUTPUT]  [--password=PASSWORD]  [--extra]
+redis-port dump     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
 ```
 
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER    --target=TARGET   [--password=PASSWORD]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
+redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
 ```
 
 Options
@@ -52,6 +52,10 @@ Options
 + -P PASSWORD, --password=PASSWORD
 
 > specify the redis auth password
+
++ -A AUTH, --auth=AUTH
+
+> specify the auth password for target
 
 + -e, --extra
 
