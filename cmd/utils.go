@@ -202,12 +202,20 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+	
+        //added prefix
+        //Key := string(e.Key)
+        //if !strings.HasPrefix(Key, "unread") {
+        //      return
+        //}
+        //slotsrestore to restore
+        s, err := redigo.String(c.Do("restore", e.Key, ttlms, e.Value))
+	//s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
 	if err != nil {
-		log.PanicError(err, "restore command error")
+		log.WarnError(err, "restore command error")
 	}
 	if s != "OK" {
-		log.Panicf("restore command response = '%s', should be 'OK'", s)
+		log.Warnf("restore command response = '%s', should be 'OK'", s)
 	}
 }
 
