@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"time"
+	//"strings"
 
 	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
 	"github.com/wandoulabs/redis-port/pkg/libs/io/pipe"
@@ -269,6 +270,12 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
+				//prefix added
+                                //Key := string(args[0])
+                                //if !strings.HasPrefix(Key, "unread") {
+                                //      cmd.nbypass.Incr()
+                                //      continue
+                                //}
 				if bypass {
 					cmd.nbypass.Incr()
 					continue
