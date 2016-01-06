@@ -12,7 +12,7 @@ redis-port decode   [--ncpu=N]  [--input=INPUT]  [--output=OUTPUT]
 * **RESTORE** rdb file to target redis
 
 ```sh
-redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
 ```
 
 * **DUMP** rdb file from master redis
@@ -24,7 +24,7 @@ redis-port dump     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  [--outpu
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
+redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
 ```
 
 Options
@@ -64,6 +64,26 @@ Options
 + --filterdb=DB
 
 > filter specifed db number, default value is '*'
+
++ --filterkeys=keys 
+
+> Filter key in keys, key is seperated by comma and supports regular expression.
+
++ --restorecmd=slotsrestore
+
+> Restore command, slotsrestore for codis, restore for redis, default is slotsrestore.
+
++ --aggregatetype=type
+
+> Aggregate type: list or set.
+
++ --aggregatekeys=keys
+
+> Aggregate key in keys, keys is seperated by comma and supports regular expression.
+
++ --aggregateTargetKey=key
+
+> Target key for aggregating.
 
 Examples
 -------
