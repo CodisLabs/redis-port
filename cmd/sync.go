@@ -271,6 +271,16 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					bypass = !acceptDB(uint32(n))
 				}
                 
+                if aggregateKey(args[0]) {
+                    s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, args[1]))
+                    if err != nil {
+		                log.PanicError(err, "aggregate error")
+	                }
+	                if s != "OK" {
+		                log.Panicf("aggregate response = '%s', should be 'OK'", s)
+	                }
+                }
+                
                 // Some commands like MSET may have multi keys, but we only use
 				// first for filter              
 				if bypass || (len(args) > 0 && !acceptKey(args[0])) {

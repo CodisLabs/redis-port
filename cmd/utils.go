@@ -203,6 +203,16 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 		}
 	}
 	
+    if aggregateKey(e.Key) {
+        s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, ttlms, e.Value))
+        if err != nil {
+		    log.PanicError(err, "aggregate error")
+	    }
+	    if s != "OK" {
+		    log.Panicf("aggregate response = '%s', should be 'OK'", s)
+	    }
+    }
+    
     s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
     
 	if err != nil {

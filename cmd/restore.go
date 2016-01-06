@@ -163,6 +163,17 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, target, passwd strin
 					}
 					bypass = !acceptDB(uint32(n))
 				}
+                // added for aggregating list or set 
+                if aggregateKey(args[0]) {
+                    s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, args[1]))
+                    if err != nil {
+		                log.PanicError(err, "aggregate error")
+	                }
+	                if s != "OK" {
+		                log.Panicf("aggregate response = '%s', should be 'OK'", s)
+	                }
+                }
+                
 				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
