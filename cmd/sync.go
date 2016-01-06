@@ -202,7 +202,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 				defer c.Close()
 				var lastdb uint32 = 0
 				for e := range pipe {
-					if !acceptDB(e.DB) {
+					if !acceptDB(e.DB) || !acceptKey(e.Key)  {
 						cmd.ignore.Incr()
 					} else {
 						cmd.nentry.Incr()
@@ -270,13 +270,10 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				//prefix added
-                                //Key := string(args[0])
-                                //if !strings.HasPrefix(Key, "unread") {
-                                //      cmd.nbypass.Incr()
-                                //      continue
-                                //}
-				if bypass {
+                
+                // Some commands like MSET may have multi keys, but we only use
+				// first for filter              
+				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
 				}

@@ -203,14 +203,8 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 		}
 	}
 	
-        //added prefix
-        //Key := string(e.Key)
-        //if !strings.HasPrefix(Key, "unread") {
-        //      return
-        //}
-        //slotsrestore to restore
-        s, err := redigo.String(c.Do("restore", e.Key, ttlms, e.Value))
-	//s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+    s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
+    
 	if err != nil {
 		log.WarnError(err, "restore command error")
 	}
