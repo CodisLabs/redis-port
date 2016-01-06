@@ -272,8 +272,10 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 				}
                 
                 if aggregateKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
                     for i := 1; i < len(args); i++{
-                        _, err := c.Do(aggregateCmd, aggregateTarget, args[i])
+                        _, err := cr.Do(aggregateCmd, aggregateTarget, args[i])
                         if err != nil {
 		                    log.PanicError(err, "sync aggregate error")
 	                    }

@@ -165,8 +165,10 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, target, passwd strin
 				}
                 // added for aggregating list or set 
                 if aggregateKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
                     for i := 1; i < len(args); i++{
-                        _, err := c.Do(aggregateCmd, aggregateTarget, args[i])
+                        _, err := cr.Do(aggregateCmd, aggregateTarget, args[i])
                         if err != nil {
 		                    log.PanicError(err, "restore aggregate error")
 	                    }

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+        "bytes"
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
@@ -218,14 +219,26 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
     
     if aggregateKey(e.Key) {
         o, err := rdb.DecodeDump(e.Value)
-        for i, ele := range o.(type) {
-            s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, ttlms, toText(ele)))
-            if err != nil {
-		      log.PanicError(err, "aggregate error")
-	       }
-	       if s != "OK" {
-		      log.Panicf("aggregate response = '%s', should be 'OK'", s)
-	       }
+        if err != nil {
+	    log.PanicError(err, "decode failed")
+	}
+        switch obj := o.(type) {
+        default:
+	    log.Panicf("unknown object %v", o)
+        case rdb.List:
+            for _, ele := range obj {
+                _, err := c.Do(aggregateCmd, aggregateTarget, toText(ele))
+                if err != nil {
+		    log.PanicError(err, "aggregate error")
+	        }
+            }
+        case rdb.Set:
+            for _, ele := range obj {
+                _, err := c.Do(aggregateCmd, aggregateTarget, toText(ele))
+                if err != nil {
+		    log.PanicError(err, "aggregate error")
+	        }
+            }
         }
     }
     
