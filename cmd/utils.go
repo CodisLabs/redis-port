@@ -202,15 +202,31 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	
+    
+	toText := func(p []byte) string {
+		var b bytes.Buffer
+		for _, c := range p {
+			switch {
+			case c >= '#' && c <= '~':
+				b.WriteByte(c)
+			default:
+				b.WriteByte('.')
+			}
+		}
+		return b.String()
+	}
+    
     if aggregateKey(e.Key) {
-        s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, ttlms, e.Value))
-        if err != nil {
-		    log.PanicError(err, "aggregate error")
-	    }
-	    if s != "OK" {
-		    log.Panicf("aggregate response = '%s', should be 'OK'", s)
-	    }
+        o, err := rdb.DecodeDump(e.Value)
+        for i, ele := range o.(type) {
+            s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, ttlms, toText(ele)))
+            if err != nil {
+		      log.PanicError(err, "aggregate error")
+	       }
+	       if s != "OK" {
+		      log.Panicf("aggregate response = '%s', should be 'OK'", s)
+	       }
+        }
     }
     
     s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))

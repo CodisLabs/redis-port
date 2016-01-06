@@ -165,13 +165,12 @@ func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, target, passwd strin
 				}
                 // added for aggregating list or set 
                 if aggregateKey(args[0]) {
-                    s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, args[1]))
-                    if err != nil {
-		                log.PanicError(err, "aggregate error")
-	                }
-	                if s != "OK" {
-		                log.Panicf("aggregate response = '%s', should be 'OK'", s)
-	                }
+                    for i := 1; i < len(args); i++{
+                        _, err := c.Do(aggregateCmd, aggregateTarget, args[i])
+                        if err != nil {
+		                    log.PanicError(err, "restore aggregate error")
+	                    }
+                    }
                 }
                 
 				if bypass || (len(args) > 0 && !acceptKey(args[0])) {

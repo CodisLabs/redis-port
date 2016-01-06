@@ -272,13 +272,12 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 				}
                 
                 if aggregateKey(args[0]) {
-                    s, err := redigo.String(c.Do(aggregateCmd, aggregateTarget, args[1]))
-                    if err != nil {
-		                log.PanicError(err, "aggregate error")
-	                }
-	                if s != "OK" {
-		                log.Panicf("aggregate response = '%s', should be 'OK'", s)
-	                }
+                    for i := 1; i < len(args); i++{
+                        _, err := c.Do(aggregateCmd, aggregateTarget, args[i])
+                        if err != nil {
+		                    log.PanicError(err, "sync aggregate error")
+	                    }
+                    }
                 }
                 
                 // Some commands like MSET may have multi keys, but we only use

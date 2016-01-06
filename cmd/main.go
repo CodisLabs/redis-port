@@ -71,6 +71,8 @@ var aggregateKey = func(key []byte) bool {
 
 var aggregateTarget = "redis:port:aggregate:target"
 
+var aggregateType = "list"
+
 var aggregateCmd = "lpush"
 
 func main() {
@@ -78,10 +80,10 @@ func main() {
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
 	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB] 
-                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatecmd=cmd] [--aggregatekeys=keys] [--aggregateTargetKey=key]
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
 	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync] 
-                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatecmd=cmd] [--aggregatekeys=keys] [--aggregateTargetKey=key]
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -99,9 +101,9 @@ Options:
 	--filterdb=DB                     Filter db = DB, default is *.
     --filterkeys=keys                 Filter key in keys, keys is seperated by comma and supports regular expression.
 	--restorecmd=slotsrestore		  Restore command, slotsrestore for codis, restore for redis.
-    --aggregatecmd=cmd                Aggregate command, lpush/rpush for list, sadd for set.
+    --aggregatetype=type              Aggregate type: list or set.
     --aggregatekeys=keys              Aggregate key in keys, keys is seperated by comma and supports regular expression.
-    --aggregateTargetKey=key             Target key for aggregating.
+    --aggregateTargetKey=key          Target key for aggregating.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -230,8 +232,16 @@ Options:
 		aggregateTarget = s
 	}
     
-    if s, ok := d["--aggregatecmd"].(string); ok && s != "" {
-		aggregateCmd = s
+    if s, ok := d["--aggregatetype"].(string); ok && s != "" {
+		aggregateType = s
+        switch s {
+        default:
+            aggregateCmd = "lpush"
+        case "list":
+            aggregateCmd = "lpush"
+        case "set":
+            aggregateCmd = "sadd"
+        }
 	}
 
 	if s, ok := d["--filesize"].(string); ok && s != "" {
