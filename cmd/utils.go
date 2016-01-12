@@ -260,6 +260,24 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
         }
     }
     
+    if sorted2setKey(e.Key) {
+        o, err := rdb.DecodeDump(e.Value)
+        if err != nil {
+	       log.PanicError(err, "decode failed")
+	   }
+        switch obj := o.(type) {
+        default:
+	    log.Panicf("unknown object %v", o)
+        case rdb.Set:
+            for _, ele := range obj {                
+                _, err := c.Do("sadd", e.Key, toText(ele))
+                if err != nil {
+		            log.PanicError(err, "aggregate error")
+	            }
+            }
+        }
+    }    
+    
     s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
     
 	if err != nil {

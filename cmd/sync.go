@@ -288,7 +288,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
                     defer cr.Close()
                     switch scmd {
                     default:
-	                   log.Panicf("unknown object %v", o)    
+	                   log.Panicf("should not exists at here", scmd)    
                     case "sadd":
                         for i := 1; i < len(args); i++{
                             _, err := cr.Do("zadd", args[0], 1, args[i])
@@ -301,6 +301,35 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
                             _, err := cr.Do("zrem", args[0], args[i])
                             if err != nil {
 		                      log.PanicError(err, "sync zrem error")
+	                       }
+                        }
+                    }
+                                                           
+                }
+
+                if sorted2setKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
+                    switch scmd {
+                    default:
+	                   log.Panicf("should not exists at here", scmd)    
+                    case "zadd":
+                        for i := 1; i < len(args); i++{
+                            if args[i] != "1" {
+                                _, err := cr.Do("sadd", args[0], args[i])
+                                if err != nil {
+		                            log.PanicError(err, "sync sadd error")
+	                            }
+                            }
+                            else {
+                                continue
+                            }                           
+                        }
+                    case "zrem":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("srem", args[0], args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync srem error")
 	                       }
                         }
                     }

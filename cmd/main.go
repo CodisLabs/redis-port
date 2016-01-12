@@ -79,6 +79,10 @@ var set2sortedKey = func(key []byte) bool {
 	return false
 }
 
+var sorted2setKey = func(key []byte) bool {
+	return false
+}
+
 
 func main() {
 	usage := `
@@ -88,7 +92,7 @@ Usage:
                         [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] 
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
 	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync] 
-                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] [--set2sortedkeys=keys]
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] [--set2sortedkeys=keys] [--sorted2setkeys=keys]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -110,6 +114,7 @@ Options:
     --aggregatekeys=keys              Aggregate key in keys, keys is seperated by comma and supports regular expression.
     --aggregateTargetKey=key          Target key for aggregating.
     --set2sortedkeys=keys             Convert set key in keys to sorted set, keys is seperated by comma and supports regular expression.
+    --sorted2setkeys=keys             Convert sorted set key in keys to set, keys is seperated by comma and supports regular expression.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -262,6 +267,28 @@ Options:
 		}
 
 		set2sortedKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
+	}
+    
+    	if s, ok := d["--sorted2setkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --sorted2setkeys failed")
+			}
+		}
+
+		sorted2setKey = func(key []byte) bool {
 			for _, reg := range keyRegexps {
 				if reg.Match(key) {
 					return true
