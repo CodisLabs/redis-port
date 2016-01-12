@@ -268,9 +268,9 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
         switch obj := o.(type) {
         default:
 	    log.Panicf("unknown object %v", o)
-        case rdb.Set:
+        case rdb.ZSet:
             for _, ele := range obj {                
-                _, err := c.Do("sadd", e.Key, toText(ele))
+                _, err := c.Do("sadd", e.Key, toText(ele.Member))
                 if err != nil {
 		            log.PanicError(err, "aggregate error")
 	            }

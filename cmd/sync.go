@@ -315,13 +315,12 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 	                   log.Panicf("should not exists at here", scmd)    
                     case "zadd":
                         for i := 1; i < len(args); i++{
-                            if args[i] != "1" {
+                            if string(args[i]) != "1" {
                                 _, err := cr.Do("sadd", args[0], args[i])
                                 if err != nil {
 		                            log.PanicError(err, "sync sadd error")
 	                            }
-                            }
-                            else {
+                            } else {
                                 continue
                             }                           
                         }
