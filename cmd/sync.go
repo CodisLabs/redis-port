@@ -282,6 +282,31 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
                     }
                 }
                 
+                // set 2 sorted set in sync command 
+                if set2sortedKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
+                    switch scmd {
+                    default:
+	                   log.Panicf("unknown object %v", o)    
+                    case "sadd":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("zadd", args[0], 1, args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync zadd error")
+	                       }
+                        }
+                    case "srem":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("zrem", args[0], args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync zrem error")
+	                       }
+                        }
+                    }
+                                                           
+                }
+                                
                 // Some commands like MSET may have multi keys, but we only use
 				// first for filter              
 				if bypass || (len(args) > 0 && !acceptKey(args[0])) {

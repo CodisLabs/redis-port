@@ -75,15 +75,20 @@ var aggregateType = "list"
 
 var aggregateCmd = "lpush"
 
+var set2sortedKey = func(key []byte) bool {
+	return false
+}
+
+
 func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
 	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB] 
-                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] 
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
 	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync] 
-                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key]
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] [--set2sortedkeys=keys]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -104,6 +109,7 @@ Options:
     --aggregatetype=type              Aggregate type: list or set.
     --aggregatekeys=keys              Aggregate key in keys, keys is seperated by comma and supports regular expression.
     --aggregateTargetKey=key          Target key for aggregating.
+    --set2sortedkeys=keys             Convert set key in keys to sorted set, keys is seperated by comma and supports regular expression.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -242,6 +248,28 @@ Options:
         case "set":
             aggregateCmd = "sadd"
         }
+	}
+       
+	if s, ok := d["--set2sortedkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --set2sortedkeys failed")
+			}
+		}
+
+		set2sortedKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
 	}
 
 	if s, ok := d["--filesize"].(string); ok && s != "" {
