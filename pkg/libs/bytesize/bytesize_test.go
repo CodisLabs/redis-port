@@ -6,8 +6,8 @@ package bytesize
 import (
 	"testing"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/assert"
-	"github.com/wandoulabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/redis-port/pkg/libs/assert"
+	"github.com/CodisLabs/redis-port/pkg/libs/errors"
 )
 
 func TestBytesize(t *testing.T) {

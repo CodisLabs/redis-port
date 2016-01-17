@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/redis-port/pkg/libs/errors"
 )
 
 var (

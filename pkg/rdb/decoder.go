@@ -8,7 +8,7 @@ import (
 
 	"github.com/cupcake/rdb"
 	"github.com/cupcake/rdb/nopdecoder"
-	"github.com/wandoulabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/redis-port/pkg/libs/errors"
 )
 
 func DecodeDump(p []byte) (interface{}, error) {

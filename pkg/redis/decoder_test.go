@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/assert"
+	"github.com/CodisLabs/redis-port/pkg/libs/assert"
 )
 
 func TestDecodeInvalidRequests(t *testing.T) {

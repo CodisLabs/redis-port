@@ -1,6 +1,6 @@
 {
-	"ImportPath": "github.com/wandoulabs/redis-port",
-	"GoVersion": "go1.5.1",
+	"ImportPath": "github.com/CodisLabs/redis-port",
+	"GoVersion": "go1.5.3",
 	"Packages": [
 		"./..."
 	],

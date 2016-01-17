@@ -13,12 +13,12 @@ import (
 	"time"
 
 	redigo "github.com/garyburd/redigo/redis"
-	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
-	"github.com/wandoulabs/redis-port/pkg/libs/errors"
-	"github.com/wandoulabs/redis-port/pkg/libs/log"
-	"github.com/wandoulabs/redis-port/pkg/libs/stats"
-	"github.com/wandoulabs/redis-port/pkg/rdb"
-	"github.com/wandoulabs/redis-port/pkg/redis"
+	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
+	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/redis-port/pkg/libs/log"
+	"github.com/CodisLabs/redis-port/pkg/libs/stats"
+	"github.com/CodisLabs/redis-port/pkg/rdb"
+	"github.com/CodisLabs/redis-port/pkg/redis"
 )
 
 func openRedisConn(target, passwd string) redigo.Conn {

@@ -3,7 +3,7 @@
 
 package backlog
 
-import "github.com/wandoulabs/redis-port/pkg/libs/errors"
+import "github.com/CodisLabs/redis-port/pkg/libs/errors"
 
 const (
 	BuffSizeAlign = 1024 * 4

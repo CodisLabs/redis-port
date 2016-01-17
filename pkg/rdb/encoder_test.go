@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/wandoulabs/redis-port/pkg/libs/assert"
-	"github.com/wandoulabs/redis-port/pkg/libs/atomic2"
-	"github.com/wandoulabs/redis-port/pkg/libs/stats"
+	"github.com/CodisLabs/redis-port/pkg/libs/assert"
+	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
+	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 )
 
 func toString(text string) String {
