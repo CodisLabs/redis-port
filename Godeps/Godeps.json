@@ -1,12 +1,21 @@
 {
 	"ImportPath": "github.com/CodisLabs/redis-port",
-	"GoVersion": "go1.5.3",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
 			"ImportPath": "github.com/cupcake/rdb",
+			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
+		},
+		{
+			"ImportPath": "github.com/cupcake/rdb/crc64",
+			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
+		},
+		{
+			"ImportPath": "github.com/cupcake/rdb/nopdecoder",
 			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
 		},
 		{
