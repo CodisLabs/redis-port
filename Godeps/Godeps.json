@@ -1,23 +1,11 @@
 {
 	"ImportPath": "github.com/CodisLabs/redis-port",
-	"GoVersion": "go1.6",
+	"GoVersion": "go1.7",
 	"GodepVersion": "v74",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
-		{
-			"ImportPath": "github.com/cupcake/rdb",
-			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
-		},
-		{
-			"ImportPath": "github.com/cupcake/rdb/crc64",
-			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
-		},
-		{
-			"ImportPath": "github.com/cupcake/rdb/nopdecoder",
-			"Rev": "3454dcabd33cb8ea8261ffd6a45f4d836eb504cc"
-		},
 		{
 			"ImportPath": "github.com/docopt/docopt-go",
 			"Comment": "0.6.1-5-g854c423",
@@ -30,6 +18,18 @@
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
 			"Rev": "6ece6e0a09f28cc399b21550cbf37ab39ba63cce"
+		},
+		{
+			"ImportPath": "github.com/spinlock/rdb",
+			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
+		},
+		{
+			"ImportPath": "github.com/spinlock/rdb/crc64",
+			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
+		},
+		{
+			"ImportPath": "github.com/spinlock/rdb/nopdecoder",
+			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
 		}
 	]
 }
