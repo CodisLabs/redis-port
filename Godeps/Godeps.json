@@ -21,15 +21,15 @@
 		},
 		{
 			"ImportPath": "github.com/spinlock/rdb",
-			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
+			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
 		},
 		{
 			"ImportPath": "github.com/spinlock/rdb/crc64",
-			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
+			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
 		},
 		{
 			"ImportPath": "github.com/spinlock/rdb/nopdecoder",
-			"Rev": "0eb668aed2e1cee8cda0b38a926e0196753b6d5a"
+			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
 		}
 	]
 }

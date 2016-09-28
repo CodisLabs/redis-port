@@ -11,7 +11,7 @@ import (
 	"github.com/spinlock/rdb/crc64"
 )
 
-const Version = 6
+const EncodeVersion = 6
 
 type Encoder struct {
 	w   io.Writer
@@ -25,7 +25,7 @@ func NewEncoder(w io.Writer) *Encoder {
 }
 
 func (e *Encoder) EncodeHeader() error {
-	_, err := fmt.Fprintf(e.w, "REDIS%04d", Version)
+	_, err := fmt.Fprintf(e.w, "REDIS%04d", EncodeVersion)
 	return err
 }
 
@@ -36,7 +36,7 @@ func (e *Encoder) EncodeFooter() error {
 }
 
 func (e *Encoder) EncodeDumpFooter() error {
-	binary.Write(e.w, binary.LittleEndian, uint16(Version))
+	binary.Write(e.w, binary.LittleEndian, uint16(EncodeVersion))
 	_, err := e.w.Write(e.crc.Sum(nil))
 	return err
 }

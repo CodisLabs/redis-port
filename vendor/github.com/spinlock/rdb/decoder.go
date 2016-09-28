@@ -13,6 +13,8 @@ import (
 	"github.com/spinlock/rdb/crc64"
 )
 
+const Version = 7
+
 // A Decoder must be implemented to parse a RDB file.
 type Decoder interface {
 	// StartRDB is called when parsing of a valid RDB file starts.
@@ -628,7 +630,7 @@ func (d *decode) checkHeader() error {
 	}
 
 	version, _ := strconv.ParseInt(string(header[5:]), 10, 64)
-	if version < 1 || version > 7 {
+	if version < 1 || version > Version {
 		return fmt.Errorf("rdb: invalid RDB version number %d", version)
 	}
 
@@ -783,8 +785,8 @@ func verifyDump(d []byte) error {
 		return fmt.Errorf("rdb: invalid dump length")
 	}
 	version := binary.LittleEndian.Uint16(d[len(d)-10:])
-	if version != uint16(Version) {
-		return fmt.Errorf("rdb: invalid version %d, expecting %d", version, Version)
+	if version < 1 || version > Version {
+		return fmt.Errorf("rdb: invalid RDB version number %d", version)
 	}
 
 	if binary.LittleEndian.Uint64(d[len(d)-8:]) != crc64.Digest(d[:len(d)-8]) {
