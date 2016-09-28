@@ -12,7 +12,10 @@ import (
 
 	"github.com/CodisLabs/redis-port/pkg/libs/errors"
 	"github.com/CodisLabs/redis-port/pkg/rdb/digest"
+	"github.com/spinlock/rdb"
 )
+
+const Version = rdb.Version
 
 type Loader struct {
 	*rdbReader
@@ -37,7 +40,7 @@ func (l *Loader) Header() error {
 	}
 	if version, err := strconv.ParseInt(string(header[5:]), 10, 64); err != nil {
 		return errors.Trace(err)
-	} else if version <= 0 || version > Version {
+	} else if version < 1 || version > Version {
 		return errors.Errorf("verify version, invalid RDB version number %d", version)
 	}
 	return nil
@@ -101,6 +104,20 @@ func (l *Loader) NextBinEntry() (*BinEntry, error) {
 			return nil, err
 		}
 		switch t {
+		case rdbFlagAux:
+			if _, err := l.readString(); err != nil {
+				return nil, err
+			}
+			if _, err := l.readString(); err != nil {
+				return nil, err
+			}
+		case rdbFlagResizeDB:
+			if _, err := l.readLength(); err != nil {
+				return nil, err
+			}
+			if _, err := l.readLength(); err != nil {
+				return nil, err
+			}
 		case rdbFlagExpiryMS:
 			ttlms, err := l.readUint64()
 			if err != nil {

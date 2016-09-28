@@ -14,22 +14,21 @@ import (
 )
 
 const (
-	Version = 6
-)
-
-const (
 	rdbTypeString = 0
 	rdbTypeList   = 1
 	rdbTypeSet    = 2
 	rdbTypeZSet   = 3
 	rdbTypeHash   = 4
 
-	rdbTypeHashZipmap  = 9
-	rdbTypeListZiplist = 10
-	rdbTypeSetIntset   = 11
-	rdbTypeZSetZiplist = 12
-	rdbTypeHashZiplist = 13
+	rdbTypeHashZipmap    = 9
+	rdbTypeListZiplist   = 10
+	rdbTypeSetIntset     = 11
+	rdbTypeZSetZiplist   = 12
+	rdbTypeHashZiplist   = 13
+	rdbTypeListQuicklist = 14
 
+	rdbFlagAux      = 0xfa
+	rdbFlagResizeDB = 0xfb
 	rdbFlagExpiryMS = 0xfc
 	rdbFlagExpiry   = 0xfd
 	rdbFlagSelectDB = 0xfe
@@ -130,6 +129,16 @@ func (r *rdbReader) readObjectValue(t byte) ([]byte, error) {
 				if _, err := r.readString(); err != nil {
 					return nil, err
 				}
+				if _, err := r.readString(); err != nil {
+					return nil, err
+				}
+			}
+		}
+	case rdbTypeListQuicklist:
+		if n, err := r.readLength(); err != nil {
+			return nil, err
+		} else {
+			for i := 0; i < int(n); i++ {
 				if _, err := r.readString(); err != nil {
 					return nil, err
 				}
