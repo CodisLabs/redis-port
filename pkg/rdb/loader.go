@@ -161,7 +161,7 @@ func createValueDump(t byte, val []byte) []byte {
 	w := io.MultiWriter(&b, c)
 	w.Write([]byte{t})
 	w.Write(val)
-	binary.Write(w, binary.LittleEndian, uint16(Version))
+	binary.Write(w, binary.LittleEndian, uint16(rdb.EncodeVersion))
 	binary.Write(w, binary.LittleEndian, c.Sum64())
 	return b.Bytes()
 }
