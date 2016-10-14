@@ -1,17 +1,16 @@
-all: redis-port
+.DEFAULT_GOAL := build-all
 
-godep-env:
-	@command -v godep 2>&1 >/dev/null || go get -u github.com/tools/godep
-	@GOPATH=`godep path` godep restore
+export GO15VENDOREXPERIMENT=1
 
-redis-port: godep-env
-	godep go build -i -o bin/redis-port ./cmd
+build-all: redis-port
+
+redis-port:
+	go build -i -o bin/redis-port ./cmd
 
 clean:
-	rm -rf bin
+	@rm -rf bin
 
 distclean: clean
-	@rm -rf Godeps/_workspace
 
 gotest:
-	godep go test -cover -v ./...
+	go test ./pkg/...

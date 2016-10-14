@@ -191,7 +191,7 @@ func selectDB(c redigo.Conn, db uint32) {
 	}
 }
 
-func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
+func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, RestoreCmd string) {
 	var ttlms uint64
 	if e.ExpireAt != 0 {
 		now := uint64(time.Now().Add(args.shift).UnixNano())
@@ -202,9 +202,21 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+	s, err := redigo.String(c.Do(RestoreCmd, e.Key, ttlms, e.Value))
 	if err != nil {
-		log.PanicError(err, "restore command error")
+		if strings.Contains(err.Error(), "Target key name already exists") {
+ 			log.Infof("Target key %s already exists, try del then restore", e.Key)
+
+ 			if _, err = c.Do("DEL", e.Key); err != nil {
+ 				log.Panicf("del %s in restore command err: %v", e.Key, err)
+ 			}
+
+ 			if s, err = redigo.String(c.Do(RestoreCmd, e.Key, ttlms, e.Value)); err != nil {
+ 				log.PanicError(err, "restore command error")
+ 			}
+ 		} else {
+ 			log.PanicError(err, "restore command error")
+ 		}
 	}
 	if s != "OK" {
 		log.Panicf("restore command response = '%s', should be 'OK'", s)

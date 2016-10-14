@@ -1,0 +1,12 @@
+language: go
+
+os:
+    - linux
+    - osx
+
+go:
+    - 1.6.2
+    - 1.5.4
+
+script:
+    - make gotest

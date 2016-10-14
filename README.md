@@ -1,6 +1,8 @@
 redis-port
 ===========
 
+[![Build Status](https://travis-ci.org/CodisLabs/redis-port.svg)](https://travis-ci.org/CodisLabs/redis-port)
+
 parse redis rdb file, sync data between redis master and slave
 
 * **DECODE** dumped payload to human readable format (hex-encoding)
