@@ -207,8 +207,8 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 					} else {
 						cmd.nentry.Incr()
 						if !targetDB(e.DB) {
+							e.DB = targetdb
 							lastdb = targetdb
-							e.DB = lastdb
 						}
 						if e.DB != lastdb {
 							lastdb = e.DB
