@@ -24,6 +24,7 @@ var args struct {
 	passwd string
 	auth   string
 	target string
+	targetdb uint32
 	extra  bool
 
 	sockfile string
@@ -58,6 +59,10 @@ var acceptDB = func(db uint32) bool {
 	return db >= MinDB && db <= MaxDB
 }
 
+var targetDB = func(db uint32) bool {
+	return db >= MinDB && db <= MaxDB
+}
+
 func main() {
 	usage := `
 Usage:
@@ -80,7 +85,7 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
-	--targetdb=DB			  set Target db which TARGET server use, if not set, will use db as from.
+	--targetdb=DB			  Set target db which TARGET server use, if not set, will use db as from.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -163,9 +168,10 @@ Options:
 			log.PanicError(err, "parse --targetdb failed")
 		}
 		u := uint32(n)
-		acceptDB = func(db uint32) bool {
+		targetDB = func(db uint32) bool {
 			return db == u
 		}
+		args.targetdb = u
 	}
 
 	if s, ok := d["--filesize"].(string); ok && s != "" {
