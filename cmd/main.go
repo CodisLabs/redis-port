@@ -87,7 +87,7 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
-	--targetdb=DB			  Set target db which TARGET server use, if not set, will use db as from.
+	--targetdb=DB			  Set target db which TARGET server use, if not set, will use db as source.
 	--restorecmd=slotsrestore         Restore command, "slotsrestore" for codis, "restore" for redis.
 	--psync                           Use PSYNC command.
 `
