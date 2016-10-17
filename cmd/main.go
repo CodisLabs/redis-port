@@ -80,6 +80,7 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+	--targetdb=DB			  set Target db which TARGET server use, if not set, will use db as from.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -149,6 +150,17 @@ Options:
 		n, err := parseInt(s, MinDB, MaxDB)
 		if err != nil {
 			log.PanicError(err, "parse --filterdb failed")
+		}
+		u := uint32(n)
+		acceptDB = func(db uint32) bool {
+			return db == u
+		}
+	}
+
+	if s, ok := d["--targetdb"].(string); ok && s != "" && s != "*" {
+		n, err := parseInt(s, MinDB, MaxDB)
+		if err != nil {
+			log.PanicError(err, "parse --targetdb failed")
 		}
 		u := uint32(n)
 		acceptDB = func(db uint32) bool {
