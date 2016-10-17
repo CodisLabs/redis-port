@@ -56,7 +56,7 @@ func openReadFile(name string) (*os.File, int64) {
 }
 
 func openWriteFile(name string) *os.File {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	f, err := os.OpenFile(name, os.O_CREATE | os.O_WRONLY | os.O_TRUNC, 0666)
 	if err != nil {
 		log.PanicErrorf(err, "cannot open file-writer '%s'", name)
 	}
@@ -64,7 +64,7 @@ func openWriteFile(name string) *os.File {
 }
 
 func openReadWriteFile(name string) *os.File {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(name, os.O_CREATE | os.O_RDWR | os.O_TRUNC, 0600)
 	if err != nil {
 		log.PanicErrorf(err, "cannot open file-readwriter '%s'", name)
 	}
@@ -117,7 +117,7 @@ func waitRdbDump(r io.Reader) <-chan int64 {
 		if rsp[0] != '$' {
 			log.Panicf("invalid sync response, rsp = '%s'", rsp)
 		}
-		n, err := strconv.Atoi(rsp[1 : len(rsp)-2])
+		n, err := strconv.Atoi(rsp[1 : len(rsp) - 2])
 		if err != nil || n <= 0 {
 			log.PanicErrorf(err, "invalid sync response = '%s', n = %d", rsp, n)
 		}
@@ -150,12 +150,12 @@ func sendPSyncFullsync(br *bufio.Reader, bw *bufio.Writer) (string, int64, <-cha
 	if err != nil {
 		log.PanicError(err, "parse psync offset failed")
 	}
-	runid, offset := xx[1], v-1
+	runid, offset := xx[1], v - 1
 	return runid, offset, waitRdbDump(br)
 }
 
 func sendPSyncContinue(br *bufio.Reader, bw *bufio.Writer, runid string, offset int64) {
-	cmd := redis.NewCommand("psync", runid, offset+2)
+	cmd := redis.NewCommand("psync", runid, offset + 2)
 	if err := redis.Encode(bw, cmd, true); err != nil {
 		log.PanicError(err, "write psync command failed, continue")
 	}
@@ -202,9 +202,23 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+	//s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+	s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
 	if err != nil {
 		log.PanicError(err, "restore command error")
+		//if strings.Contains(err.Error(), "Target key name is busy") {
+		//	log.Infof("Target key %s is busy, try del first then restore", e.Key)
+		//
+		//	if _, err = c.Do("DEL", e.Key); err != nil {
+		//		log.Panicf("del %s in restore command err: %v", e.Key, err)
+		//	}
+		//
+		//	if s, err = redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value)); err != nil {
+		//		log.PanicError(err, "restore command error")
+		//	}
+		//} else {
+		//	log.PanicError(err, "restore command error")
+		//}
 	}
 	if s != "OK" {
 		log.Panicf("restore command response = '%s', should be 'OK'", s)
