@@ -71,7 +71,7 @@ Options
 
 >Set target db which TARGET server use, if not set, will use db as source.
 
-+--restorecmd=slotsrestore        
++ --restorecmd=slotsrestore        
 
 >Restore command, "slotsrestore" for codis, "restore" for redis.
 
