@@ -68,9 +68,11 @@ Options
 > filter specifed db number, default value is '*'
 
 + --specifydb=TDB
+
 > Specify target db number, default value is *.
 
 + --restorecmd=slotsrestore
+
 > Restore command, `slotsrestore` for codis, `restore` for redis
 
 Examples
