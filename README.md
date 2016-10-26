@@ -26,7 +26,7 @@ redis-port dump     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  [--outpu
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
+redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--specifydb=TDB] [--restorecmd=slotsrestore] [--psync]
 ```
 
 Options
@@ -66,6 +66,12 @@ Options
 + --filterdb=DB
 
 > filter specifed db number, default value is '*'
+
++ --specifydb=TDB
+> Specify target db number, default value is *.
+
++ --restorecmd=slotsrestore
+> Restore command, `slotsrestore` for codis, `restore` for redis
 
 Examples
 -------
