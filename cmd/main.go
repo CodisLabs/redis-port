@@ -101,7 +101,7 @@ Options:
 	ncpu := runtime.GOMAXPROCS(0)
 
 	if s, ok := d["--parallel"].(string); ok && s != "" {
-		n, err := parseInt(s, 1, 1024)
+		n, err := parseInt(s, 1, 2048)
 		if err != nil {
 			log.PanicErrorf(err, "parse --parallel failed")
 		}
