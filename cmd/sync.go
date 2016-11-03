@@ -240,7 +240,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 	}
 	log.Info("sync rdb done")
 }
-
+// TODO specifydb
 func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 	c := openNetConn(target, passwd)
 	defer c.Close()
@@ -273,7 +273,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				if bypass {
+				if bypass || is_cmd_blacklist(scmd){
 					cmd.nbypass.Incr()
 					continue
 				}

@@ -202,10 +202,12 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, RestoreCmd string) {
 			ttlms = e.ExpireAt - now
 		}
 	}
+	// TODO pipeline
 	s, err := redigo.String(c.Do(RestoreCmd, e.Key, ttlms, e.Value))
 	if err != nil {
-		if strings.Contains(err.Error(), "Target key name already exists") {
- 			log.Infof("Target key %s already exists, try del then restore", e.Key)
+		if strings.Contains(err.Error(), "Target key name already exists") ||
+			strings.Contains(err.Error(), "Target key name is busy"){
+ 			log.Infof("Target key %s already exists, restore after del", e.Key)
 
  			if _, err = c.Do("DEL", e.Key); err != nil {
  				log.Panicf("del %s in restore command err: %v", e.Key, err)
@@ -271,4 +273,15 @@ func newRDBLoader(reader *bufio.Reader, rbytes *atomic2.Int64, size int) chan *r
 		}
 	}()
 	return pipe
+}
+
+func is_cmd_blacklist(scmd string) bool {
+	black_list := []string{"ping", "publish"}
+
+	for _, v := range black_list{
+		if v == scmd{
+			return true
+		}
+	}
+	return false
 }
