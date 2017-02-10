@@ -6,7 +6,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -118,116 +117,93 @@ func (cmd *cmdDecode) Main() {
 }
 
 func (cmd *cmdDecode) decoderMain(ipipe <-chan *rdb.BinEntry, opipe chan<- string) {
-	toText := func(p []byte) string {
-		var b bytes.Buffer
-		for _, c := range p {
-			switch {
-			case c >= '#' && c <= '~':
-				b.WriteByte(c)
-			default:
-				b.WriteByte('.')
-			}
-		}
-		return b.String()
-	}
-	toBase64 := func(p []byte) string {
-		return base64.StdEncoding.EncodeToString(p)
-	}
-	toJson := func(o interface{}) string {
+	encodeJson := func(w *bytes.Buffer, o interface{}) {
 		b, err := json.Marshal(o)
 		if err != nil {
 			log.PanicError(err, "encode to json failed")
 		}
-		return string(b)
+		if _, err := w.Write(b); err != nil {
+			log.PanicError(err, "encode to json failed")
+		}
+		if _, err := w.WriteString("\n"); err != nil {
+			log.PanicError(err, "encode to json failed")
+		}
 	}
 	for e := range ipipe {
 		o, err := rdb.DecodeDump(e.Value)
 		if err != nil {
 			log.PanicError(err, "decode failed")
 		}
-		var b bytes.Buffer
+		var b = &bytes.Buffer{}
 		switch obj := o.(type) {
 		default:
 			log.Panicf("unknown object %v", o)
 		case rdb.String:
-			o := &struct {
-				DB       uint32 `json:"db"`
-				Type     string `json:"type"`
-				ExpireAt uint64 `json:"expireat"`
-				Key      string `json:"key"`
-				Key64    string `json:"key64"`
-				Value64  string `json:"value64"`
+			encodeJson(b, &struct {
+				DB    uint32 `json:"db"`
+				Type  string `json:"type"`
+				Key   string `json:"key"`
+				Value string `json:"value"`
 			}{
-				e.DB, "string", e.ExpireAt, toText(e.Key), toBase64(e.Key),
-				toBase64(obj),
-			}
-			fmt.Fprintf(&b, "%s\n", toJson(o))
+				e.DB, "string", string(e.Key), string(obj),
+			})
 		case rdb.List:
 			for i, ele := range obj {
-				o := &struct {
-					DB       uint32 `json:"db"`
-					Type     string `json:"type"`
-					ExpireAt uint64 `json:"expireat"`
-					Key      string `json:"key"`
-					Key64    string `json:"key64"`
-					Index    int    `json:"index"`
-					Value64  string `json:"value64"`
+				encodeJson(b, &struct {
+					DB    uint32 `json:"db"`
+					Type  string `json:"type"`
+					Key   string `json:"key"`
+					Index int    `json:"index"`
+					Value string `json:"value"`
 				}{
-					e.DB, "list", e.ExpireAt, toText(e.Key), toBase64(e.Key),
-					i, toBase64(ele),
-				}
-				fmt.Fprintf(&b, "%s\n", toJson(o))
+					e.DB, "list", string(e.Key), i, string(ele),
+				})
 			}
 		case rdb.Hash:
 			for _, ele := range obj {
-				o := &struct {
-					DB       uint32 `json:"db"`
-					Type     string `json:"type"`
-					ExpireAt uint64 `json:"expireat"`
-					Key      string `json:"key"`
-					Key64    string `json:"key64"`
-					Field    string `json:"field"`
-					Field64  string `json:"field64"`
-					Value64  string `json:"value64"`
+				encodeJson(b, &struct {
+					DB    uint32 `json:"db"`
+					Type  string `json:"type"`
+					Key   string `json:"key"`
+					Field string `json:"field"`
+					Value string `json:"value"`
 				}{
-					e.DB, "hash", e.ExpireAt, toText(e.Key), toBase64(e.Key),
-					toText(ele.Field), toBase64(ele.Field), toBase64(ele.Value),
-				}
-				fmt.Fprintf(&b, "%s\n", toJson(o))
+					e.DB, "hash", string(e.Key), string(ele.Field), string(ele.Value),
+				})
 			}
 		case rdb.Set:
 			for _, mem := range obj {
-				o := &struct {
-					DB       uint32 `json:"db"`
-					Type     string `json:"type"`
-					ExpireAt uint64 `json:"expireat"`
-					Key      string `json:"key"`
-					Key64    string `json:"key64"`
-					Member   string `json:"member"`
-					Member64 string `json:"member64"`
+				encodeJson(b, &struct {
+					DB     uint32 `json:"db"`
+					Type   string `json:"type"`
+					Key    string `json:"key"`
+					Member string `json:"member"`
 				}{
-					e.DB, "set", e.ExpireAt, toText(e.Key), toBase64(e.Key),
-					toText(mem), toBase64(mem),
-				}
-				fmt.Fprintf(&b, "%s\n", toJson(o))
+					e.DB, "dict", string(e.Key), string(mem),
+				})
 			}
 		case rdb.ZSet:
 			for _, ele := range obj {
-				o := &struct {
-					DB       uint32  `json:"db"`
-					Type     string  `json:"type"`
-					ExpireAt uint64  `json:"expireat"`
-					Key      string  `json:"key"`
-					Key64    string  `json:"key64"`
-					Member   string  `json:"member"`
-					Member64 string  `json:"member64"`
-					Score    float64 `json:"score"`
+				encodeJson(b, &struct {
+					DB     uint32  `json:"db"`
+					Type   string  `json:"type"`
+					Key    string  `json:"key"`
+					Member string  `json:"member"`
+					Score  float64 `json:"score"`
 				}{
-					e.DB, "zset", e.ExpireAt, toText(e.Key), toBase64(e.Key),
-					toText(ele.Member), toBase64(ele.Member), ele.Score,
-				}
-				fmt.Fprintf(&b, "%s\n", toJson(o))
+					e.DB, "zset", string(e.Key), string(ele.Member), ele.Score,
+				})
 			}
+		}
+		if e.ExpireAt != 0 {
+			encodeJson(b, &struct {
+				DB       uint32 `json:"db"`
+				Type     string `json:"type"`
+				Key      string `json:"key"`
+				ExpireAt uint64 `json:"expireat"`
+			}{
+				e.DB, "expire", string(e.Key), e.ExpireAt,
+			})
 		}
 		cmd.nentry.Incr()
 		opipe <- b.String()
