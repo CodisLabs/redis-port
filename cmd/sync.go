@@ -46,6 +46,7 @@ func (cmd *cmdSync) Stat() *cmdSyncStat {
 
 func (cmd *cmdSync) Main() {
 	from, target := args.from, args.target
+	targetdb := args.targetdb
 	if len(from) == 0 {
 		log.Panic("invalid argument: from")
 	}
@@ -87,8 +88,8 @@ func (cmd *cmdSync) Main() {
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
 
-	cmd.SyncRDBFile(reader, target, args.auth, nsize)
-	cmd.SyncCommand(reader, target, args.auth)
+	cmd.SyncRDBFile(reader, target, args.auth, nsize, targetdb)
+	cmd.SyncCommand(reader, target, args.auth,targetdb)
 }
 
 func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
@@ -186,7 +187,7 @@ func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer
 	}
 }
 
-func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64) {
+func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, targetdb uint32) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -205,6 +206,10 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 						cmd.ignore.Incr()
 					} else {
 						cmd.nentry.Incr()
+						if !targetDB(e.DB) {
+							e.DB = targetdb
+							//lastdb = targetdb
+						}
 						if e.DB != lastdb {
 							lastdb = e.DB
 							selectDB(c, lastdb)
@@ -237,7 +242,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 	log.Info("sync rdb done")
 }
 
-func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
+func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string, targetdb uint32) {
 	c := openNetConn(target, passwd)
 	defer c.Close()
 
@@ -268,6 +273,12 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 						log.PanicErrorf(err, "parse db = %s failed", s)
 					}
 					bypass = !acceptDB(uint32(n))
+					if !bypass {
+						if !targetDB(uint32(n)){
+							resp = redis.NewCommand(scmd,targetdb);
+
+						}
+					}
 				}
 				if bypass {
 					cmd.nbypass.Incr()

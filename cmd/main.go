@@ -20,17 +20,18 @@ var args struct {
 	output   string
 	parallel int
 
-	from   string
-	passwd string
-	auth   string
-	target string
-	extra  bool
+	from     string
+	passwd   string
+	auth     string
+	target   string
+	targetdb uint32
+	extra    bool
 
 	sockfile string
 	filesize int64
 
-	shift time.Duration
-	psync bool
+	shift    time.Duration
+	psync    bool
 }
 
 const (
@@ -58,13 +59,19 @@ var acceptDB = func(db uint32) bool {
 	return db >= MinDB && db <= MaxDB
 }
 
+var targetDB = func(db uint32) bool {
+	return db >= MinDB && db <= MaxDB
+}
+
+var restoreCmd = "slotsrestore"
+
 func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB [--targetdb=DB]] [--restorecmd=slotsrestore]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB [--targetdb=DB]] [--restorecmd=slotsrestore] [--psync]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -80,6 +87,8 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+	--targetdb=DB			  Set target db which TARGET server use, if not set, will use db as source.
+	--restorecmd=slotsrestore         Restore command, "slotsrestore" for codis, "restore" for redis.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -135,7 +144,7 @@ Options:
 			if err != nil {
 				log.PanicError(err, "parse --faketime failed")
 			}
-			args.shift = time.Duration(n*int64(time.Millisecond) - time.Now().UnixNano())
+			args.shift = time.Duration(n * int64(time.Millisecond) - time.Now().UnixNano())
 		default:
 			t, err := time.Parse("2006-01-02 15:04:05", s)
 			if err != nil {
@@ -156,6 +165,18 @@ Options:
 		}
 	}
 
+	if s, ok := d["--targetdb"].(string); ok && s != "" && s != "*" {
+		n, err := parseInt(s, MinDB, MaxDB)
+		if err != nil {
+			log.PanicError(err, "parse --targetdb failed")
+		}
+		u := uint32(n)
+		targetDB = func(db uint32) bool {
+			return db == u
+		}
+		args.targetdb = u
+	}
+
 	if s, ok := d["--filesize"].(string); ok && s != "" {
 		if len(args.sockfile) == 0 {
 			log.Panic("please specify --sockfile first")
@@ -170,6 +191,10 @@ Options:
 		args.filesize = n
 	} else {
 		args.filesize = bytesize.GB
+	}
+
+	if s, ok := d["--restorecmd"].(string); ok && s != "" {
+		restoreCmd = s
 	}
 
 	log.Infof("set ncpu = %d, parallel = %d\n", ncpu, args.parallel)

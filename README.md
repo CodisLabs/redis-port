@@ -1,5 +1,5 @@
-redis-port
-===========
+redis-port (Support both redis/codis as target, and can set targetdb to restore)
+================================================================================
 
 [![Build Status](https://travis-ci.org/CodisLabs/redis-port.svg)](https://travis-ci.org/CodisLabs/redis-port)
 
@@ -14,7 +14,7 @@ redis-port decode   [--ncpu=N]  [--input=INPUT]  [--output=OUTPUT]
 * **RESTORE** rdb file to target redis
 
 ```sh
-redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB [--targetdb=DB]] [--filterdb=DB [--targetdb=DB]] [--restorecmd=slotsrestore]
 ```
 
 * **DUMP** rdb file from master redis
@@ -26,7 +26,7 @@ redis-port dump     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  [--outpu
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
+redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB [--targetdb=DB]] [--restorecmd=slotsrestore] [--psync]
 ```
 
 Options
@@ -66,6 +66,14 @@ Options
 + --filterdb=DB
 
 > filter specifed db number, default value is '*'
+
++ --targetdb=DB			  
+
+>Set target db which TARGET server use, if not set, will use db as source.
+
++ --restorecmd=slotsrestore        
+
+>Restore command, "slotsrestore" for codis, "restore" for redis.
 
 Examples
 -------
