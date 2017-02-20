@@ -99,7 +99,7 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd strin
 							lastdb = e.DB
 							selectDB(c, lastdb)
 						}
-						restoreRdbEntry(c, e)
+						restoreRdbEntry(c, e, args.restorecmd)
 					}
 				}
 			}()

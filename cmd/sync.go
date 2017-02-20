@@ -205,11 +205,15 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 						cmd.ignore.Incr()
 					} else {
 						cmd.nentry.Incr()
-						if e.DB != lastdb {
-							lastdb = e.DB
-							selectDB(c, lastdb)
+						if args.specifydb >= 0 {
+							selectDB(c, uint32(args.specifydb))
+						}else{
+							if e.DB != lastdb {
+								lastdb = e.DB
+								selectDB(c, lastdb)
+							}
 						}
-						restoreRdbEntry(c, e)
+						restoreRdbEntry(c, e, args.restorecmd)
 					}
 				}
 			}()
@@ -236,7 +240,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 	}
 	log.Info("sync rdb done")
 }
-
+// TODO specifydb
 func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 	c := openNetConn(target, passwd)
 	defer c.Close()
@@ -269,7 +273,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				if bypass {
+				if bypass || is_cmd_blacklist(scmd){
 					cmd.nbypass.Incr()
 					continue
 				}

@@ -31,6 +31,8 @@ var args struct {
 
 	shift time.Duration
 	psync bool
+	restorecmd string
+	specifydb int
 }
 
 const (
@@ -62,9 +64,9 @@ func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB] [--restorecmd=slotsrestore]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--specifydb=TDB] [--restorecmd=slotsrestore] [--psync]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -80,6 +82,8 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+	--specifydb=TDB                   Specify target db = TDB, default is *.
+	--restorecmd=slotsrestore         Restore command, slotsrestore for codis, restore for redis
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -97,7 +101,7 @@ Options:
 	ncpu := runtime.GOMAXPROCS(0)
 
 	if s, ok := d["--parallel"].(string); ok && s != "" {
-		n, err := parseInt(s, 1, 1024)
+		n, err := parseInt(s, 1, 2048)
 		if err != nil {
 			log.PanicErrorf(err, "parse --parallel failed")
 		}
@@ -121,6 +125,22 @@ Options:
 	args.extra, _ = d["--extra"].(bool)
 	args.psync, _ = d["--psync"].(bool)
 	args.sockfile, _ = d["--sockfile"].(string)
+
+	if s, ok := d["--specifydb"].(string); ok && s != "" {
+		n, err := parseInt(s, MinDB, MaxDB)
+		if err != nil {
+			log.PanicErrorf(err, "parse --specifydb failed")
+		}
+		args.specifydb = n
+	}else {
+		args.specifydb = -1
+	}
+
+	if s, ok := d["--restorecmd"].(string); ok && s != "" {
+		args.restorecmd = s
+	}else {
+		args.restorecmd = "slosrestore"
+	}
 
 	if s, ok := d["--faketime"].(string); ok && s != "" {
 		switch s[0] {
