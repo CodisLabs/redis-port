@@ -4,6 +4,7 @@
 package main
 
 import (
+    "regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -58,13 +59,40 @@ var acceptDB = func(db uint32) bool {
 	return db >= MinDB && db <= MaxDB
 }
 
+var acceptKey = func(key []byte) bool {
+	return true
+}
+
+var restoreCmd = "slotsrestore"
+
+var aggregateKey = func(key []byte) bool {
+	return false
+}
+
+var aggregateTarget = "redis:port:aggregate:target"
+
+var aggregateType = "list"
+
+var aggregateCmd = "lpush"
+
+var set2sortedKey = func(key []byte) bool {
+	return false
+}
+
+var sorted2setKey = func(key []byte) bool {
+	return false
+}
+
+
 func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB] 
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] 
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync] 
+                        [--filterkeys=keys] [--restorecmd=slotsrestore] [--aggregatetype=type] [--aggregatekeys=keys] [--aggregateTargetKey=key] [--set2sortedkeys=keys] [--sorted2setkeys=keys]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -80,6 +108,13 @@ Options:
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set ture to send/receive following redis commands, default is false.
 	--filterdb=DB                     Filter db = DB, default is *.
+    --filterkeys=keys                 Filter key in keys, keys is seperated by comma and supports regular expression.
+	--restorecmd=slotsrestore		  Restore command, slotsrestore for codis, restore for redis.
+    --aggregatetype=type              Aggregate type: list or set.
+    --aggregatekeys=keys              Aggregate key in keys, keys is seperated by comma and supports regular expression.
+    --aggregateTargetKey=key          Target key for aggregating.
+    --set2sortedkeys=keys             Convert set key in keys to sorted set, keys is seperated by comma and supports regular expression.
+    --sorted2setkeys=keys             Convert sorted set key in keys to set, keys is seperated by comma and supports regular expression.
 	--psync                           Use PSYNC command.
 `
 	d, err := docopt.Parse(usage, nil, true, "", false)
@@ -153,6 +188,114 @@ Options:
 		u := uint32(n)
 		acceptDB = func(db uint32) bool {
 			return db == u
+		}
+	}
+    
+	if s, ok := d["--filterkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --filterkeys failed")
+			}
+		}
+
+		acceptKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
+	}
+
+	if s, ok := d["--restorecmd"].(string); ok && s != "" {
+		restoreCmd = s
+	}
+
+	if s, ok := d["--aggregatekeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --aggregatekeys failed")
+			}
+		}
+
+		aggregateKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
+	}
+
+	if s, ok := d["--aggregateTargetKey"].(string); ok && s != "" {
+		aggregateTarget = s
+	}
+    
+    if s, ok := d["--aggregatetype"].(string); ok && s != "" {
+		aggregateType = s
+        switch s {
+        default:
+            aggregateCmd = "lpush"
+        case "list":
+            aggregateCmd = "lpush"
+        case "set":
+            aggregateCmd = "sadd"
+        }
+	}
+       
+	if s, ok := d["--set2sortedkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --set2sortedkeys failed")
+			}
+		}
+
+		set2sortedKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
+		}
+	}
+    
+    	if s, ok := d["--sorted2setkeys"].(string); ok && s != "" && s != "*" {
+		keys := strings.Split(s, ",")
+
+		keyRegexps := make([]*regexp.Regexp, len(keys))
+		for i, key := range keys {
+			keyRegexps[i], err = regexp.Compile(key)
+			if err != nil {
+				log.PanicError(err, "parse --sorted2setkeys failed")
+			}
+		}
+
+		sorted2setKey = func(key []byte) bool {
+			for _, reg := range keyRegexps {
+				if reg.Match(key) {
+					return true
+				}
+			}
+
+			return false
 		}
 	}
 

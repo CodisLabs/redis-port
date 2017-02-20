@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"time"
+	//"strings"
 
 	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
 	"github.com/CodisLabs/redis-port/pkg/libs/io/pipe"
@@ -201,7 +202,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 				defer c.Close()
 				var lastdb uint32 = 0
 				for e := range pipe {
-					if !acceptDB(e.DB) {
+					if !acceptDB(e.DB) || !acceptKey(e.Key)  {
 						cmd.ignore.Incr()
 					} else {
 						cmd.nentry.Incr()
@@ -269,7 +270,74 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 					}
 					bypass = !acceptDB(uint32(n))
 				}
-				if bypass {
+                
+                if aggregateKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
+                    for i := 1; i < len(args); i++{
+                        _, err := cr.Do(aggregateCmd, aggregateTarget, args[i])
+                        if err != nil {
+		                    log.PanicError(err, "sync aggregate error")
+	                    }
+                    }
+                }
+                
+                // set 2 sorted set in sync command 
+                if set2sortedKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
+                    switch scmd {
+                    default:
+	                   log.Panicf("should not exists at here", scmd)    
+                    case "sadd":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("zadd", args[0], 1, args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync zadd error")
+	                       }
+                        }
+                    case "srem":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("zrem", args[0], args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync zrem error")
+	                       }
+                        }
+                    }
+                                                           
+                }
+
+                if sorted2setKey(args[0]) {
+                    cr := openRedisConn(target, passwd)
+                    defer cr.Close()
+                    switch scmd {
+                    default:
+	                   log.Panicf("should not exists at here", scmd)    
+                    case "zadd":
+                        for i := 1; i < len(args); i++{
+                            if string(args[i]) != "1" {
+                                _, err := cr.Do("sadd", args[0], args[i])
+                                if err != nil {
+		                            log.PanicError(err, "sync sadd error")
+	                            }
+                            } else {
+                                continue
+                            }                           
+                        }
+                    case "zrem":
+                        for i := 1; i < len(args); i++{
+                            _, err := cr.Do("srem", args[0], args[i])
+                            if err != nil {
+		                      log.PanicError(err, "sync srem error")
+	                       }
+                        }
+                    }
+                                                           
+                }
+                                
+                // Some commands like MSET may have multi keys, but we only use
+				// first for filter              
+				if bypass || (len(args) > 0 && !acceptKey(args[0])) {
 					cmd.nbypass.Incr()
 					continue
 				}

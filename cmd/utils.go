@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+        "bytes"
 
 	redigo "github.com/garyburd/redigo/redis"
 	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
@@ -202,12 +203,88 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
+    
+	toText := func(p []byte) string {
+		var b bytes.Buffer
+		for _, c := range p {
+			switch {
+			case c >= '#' && c <= '~':
+				b.WriteByte(c)
+			default:
+				b.WriteByte('.')
+			}
+		}
+		return b.String()
+	}
+    
+    if aggregateKey(e.Key) {
+        o, err := rdb.DecodeDump(e.Value)
+        if err != nil {
+	    log.PanicError(err, "decode failed")
+	}
+        switch obj := o.(type) {
+        default:
+	    log.Panicf("unknown object %v", o)
+        case rdb.List:
+            for _, ele := range obj {
+                _, err := c.Do(aggregateCmd, aggregateTarget, toText(ele))
+                if err != nil {
+		    log.PanicError(err, "aggregate error")
+	        }
+            }
+        case rdb.Set:
+            for _, ele := range obj {
+                _, err := c.Do(aggregateCmd, aggregateTarget, toText(ele))
+                if err != nil {
+		    log.PanicError(err, "aggregate error")
+	        }
+            }
+        }
+    }
+
+    if set2sortedKey(e.Key) {
+        o, err := rdb.DecodeDump(e.Value)
+        if err != nil {
+	       log.PanicError(err, "decode failed")
+	   }
+        switch obj := o.(type) {
+        default:
+	    log.Panicf("unknown object %v", o)
+        case rdb.Set:
+            for _, ele := range obj {
+                _, err := c.Do("zadd", e.Key, 1, toText(ele))
+                if err != nil {
+		            log.PanicError(err, "aggregate error")
+	            }
+            }
+        }
+    }
+    
+    if sorted2setKey(e.Key) {
+        o, err := rdb.DecodeDump(e.Value)
+        if err != nil {
+	       log.PanicError(err, "decode failed")
+	   }
+        switch obj := o.(type) {
+        default:
+	    log.Panicf("unknown object %v", o)
+        case rdb.ZSet:
+            for _, ele := range obj {                
+                _, err := c.Do("sadd", e.Key, toText(ele.Member))
+                if err != nil {
+		            log.PanicError(err, "aggregate error")
+	            }
+            }
+        }
+    }    
+    
+    s, err := redigo.String(c.Do(restoreCmd, e.Key, ttlms, e.Value))
+    
 	if err != nil {
-		log.PanicError(err, "restore command error")
+		log.WarnError(err, "restore command error")
 	}
 	if s != "OK" {
-		log.Panicf("restore command response = '%s', should be 'OK'", s)
+		log.Warnf("restore command response = '%s', should be 'OK'", s)
 	}
 }
 
