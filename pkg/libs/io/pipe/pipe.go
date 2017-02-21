@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 )
 
 type buffer interface {

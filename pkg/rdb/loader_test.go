@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/assert"
+	"github.com/CodisLabs/codis/pkg/utils/assert"
 )
 
 func DecodeHexRdb(t *testing.T, s string, n int) map[string]*BinEntry {

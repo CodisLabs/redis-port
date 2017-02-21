@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 )
 
 const (

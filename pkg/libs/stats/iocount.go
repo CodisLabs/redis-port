@@ -6,7 +6,7 @@ package stats
 import (
 	"io"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 )
 
 type CountReader struct {

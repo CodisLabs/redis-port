@@ -13,9 +13,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
+	"github.com/CodisLabs/codis/pkg/utils/log"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 	"github.com/CodisLabs/redis-port/pkg/libs/io/pipe"
-	"github.com/CodisLabs/redis-port/pkg/libs/log"
 	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 	"github.com/CodisLabs/redis-port/pkg/redis"
 )

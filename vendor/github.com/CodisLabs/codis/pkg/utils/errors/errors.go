@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/trace"
+	"github.com/CodisLabs/codis/pkg/utils/trace"
 )
 
 var TraceEnabled = true

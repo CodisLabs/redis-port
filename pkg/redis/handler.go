@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
-	"github.com/CodisLabs/redis-port/pkg/libs/log"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
+	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
 type HandlerFunc func(arg0 interface{}, args ...[]byte) (Resp, error)

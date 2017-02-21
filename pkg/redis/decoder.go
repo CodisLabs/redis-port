@@ -9,8 +9,8 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
-	"github.com/CodisLabs/redis-port/pkg/libs/log"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
+	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
 var (

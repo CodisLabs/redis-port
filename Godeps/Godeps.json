@@ -1,23 +1,55 @@
 {
 	"ImportPath": "github.com/CodisLabs/redis-port",
 	"GoVersion": "go1.7",
-	"GodepVersion": "v74",
+	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/assert",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/bytesize",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/errors",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/log",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/sync2/atomic2",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/trace",
+			"Comment": "3.1.5-2-g900a352",
+			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+		},
+		{
 			"ImportPath": "github.com/docopt/docopt-go",
-			"Comment": "0.6.1-5-g854c423",
-			"Rev": "854c423c810880e30b9fecdabb12d54f4a92f9bb"
+			"Comment": "0.6.2",
+			"Rev": "784ddc588536785e7299f7272f39101f7faccc3f"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/internal",
-			"Rev": "6ece6e0a09f28cc399b21550cbf37ab39ba63cce"
+			"Comment": "v1.0.0-20-g4854517",
+			"Rev": "48545177e92ae3e7bcdbd50b42f7a139e6a268da"
 		},
 		{
 			"ImportPath": "github.com/garyburd/redigo/redis",
-			"Rev": "6ece6e0a09f28cc399b21550cbf37ab39ba63cce"
+			"Comment": "v1.0.0-20-g4854517",
+			"Rev": "48545177e92ae3e7bcdbd50b42f7a139e6a268da"
 		},
 		{
 			"ImportPath": "github.com/spinlock/rdb",

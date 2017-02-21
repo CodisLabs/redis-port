@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/assert"
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/codis/pkg/utils/assert"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 )
 
 func openPipe(t *testing.T, fileName string) (pr Reader, pw Writer, pf *os.File) {

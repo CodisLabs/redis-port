@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
-	"github.com/CodisLabs/redis-port/pkg/libs/log"
+	"github.com/CodisLabs/codis/pkg/utils/log"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 )
 
 type cmdDump struct {

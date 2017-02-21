@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/assert"
-	"github.com/CodisLabs/redis-port/pkg/libs/atomic2"
+	"github.com/CodisLabs/codis/pkg/utils/assert"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 )
 

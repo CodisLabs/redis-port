@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 	"github.com/spinlock/rdb"
 )
 

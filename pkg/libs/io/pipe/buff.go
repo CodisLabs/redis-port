@@ -6,7 +6,7 @@ package pipe
 import (
 	"io"
 
-	"github.com/CodisLabs/redis-port/pkg/libs/errors"
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 )
 
 const (
