@@ -63,7 +63,7 @@ func (cmd *cmdRestore) Main() {
 
 	reader := bufio.NewReaderSize(readin, ReaderBufferSize)
 
-	cmd.RestoreRDBFile(reader, target, args.auth, nsize)
+	cmd.RestoreRDBFile(reader, target, args.auth, nsize, args.codis)
 
 	if !args.extra {
 		return
@@ -76,7 +76,7 @@ func (cmd *cmdRestore) Main() {
 	cmd.RestoreCommand(reader, target, args.auth)
 }
 
-func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd string, nsize int64) {
+func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -99,7 +99,7 @@ func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd strin
 							lastdb = e.DB
 							selectDB(c, lastdb)
 						}
-						restoreRdbEntry(c, e)
+						restoreRdbEntry(c, e, codis)
 					}
 				}
 			}()

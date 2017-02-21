@@ -31,6 +31,7 @@ var args struct {
 
 	shift time.Duration
 	psync bool
+	codis bool
 }
 
 const (
@@ -62,9 +63,9 @@ func main() {
 	usage := `
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
-	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]   --target=TARGET   [--auth=AUTH]  [--extra] [--faketime=FAKETIME]  [--filterdb=DB]
+	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]                          --target=TARGET   [--codis] [--auth=AUTH]  [--faketime=FAKETIME]               [--filterdb=DB] [--extra]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--codis] [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD]   --target=TARGET   [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -78,7 +79,8 @@ Options:
 	--faketime=FAKETIME               Set current system time to adjust key's expire time.
 	--sockfile=FILE                   Use FILE to as socket buffer, default is disabled.
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
-	-e, --extra                       Set ture to send/receive following redis commands, default is false.
+	-e, --extra                       Set true to send/receive following redis commands, default is false.
+	--codis                           Target is codis proxy or normal redis instance.
 	--filterdb=DB                     Filter db = DB, default is *.
 	--psync                           Use PSYNC command.
 `
@@ -120,6 +122,7 @@ Options:
 
 	args.extra, _ = d["--extra"].(bool)
 	args.psync, _ = d["--psync"].(bool)
+	args.codis, _ = d["--codis"].(bool)
 	args.sockfile, _ = d["--sockfile"].(string)
 
 	if s, ok := d["--faketime"].(string); ok && s != "" {

@@ -191,7 +191,7 @@ func selectDB(c redigo.Conn, db uint32) {
 	}
 }
 
-func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
+func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, codis bool) {
 	var ttlms uint64
 	if e.ExpireAt != 0 {
 		now := uint64(time.Now().Add(args.shift).UnixNano())
@@ -205,9 +205,16 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 	const MaxValueSize = bytesize.MB * 128
 
 	if len(e.Value) < MaxValueSize {
-		_, err := redigo.String(c.Do("RESTORE", e.Key, ttlms, e.Value, "REPLACE"))
-		if err != nil {
-			log.PanicError(err, "RESTORE command error")
+		if codis {
+			_, err := redigo.String(c.Do("SLOTSRESTORE", e.Key, ttlms, e.Value))
+			if err != nil {
+				log.PanicError(err, "SLOTSRESTORE command error")
+			}
+		} else {
+			_, err := redigo.String(c.Do("RESTORE", e.Key, ttlms, e.Value, "REPLACE"))
+			if err != nil {
+				log.PanicError(err, "RESTORE command error")
+			}
 		}
 	} else {
 		o, err := e.ObjEntry()

@@ -87,7 +87,7 @@ func (cmd *cmdSync) Main() {
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
 
-	cmd.SyncRDBFile(reader, target, args.auth, nsize)
+	cmd.SyncRDBFile(reader, target, args.auth, nsize, args.codis)
 	cmd.SyncCommand(reader, target, args.auth)
 }
 
@@ -186,7 +186,7 @@ func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer
 	}
 }
 
-func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64) {
+func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -209,7 +209,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 							lastdb = e.DB
 							selectDB(c, lastdb)
 						}
-						restoreRdbEntry(c, e)
+						restoreRdbEntry(c, e, codis)
 					}
 				}
 			}()
