@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/CodisLabs/codis/pkg/utils/bytesize"
@@ -19,6 +20,7 @@ import (
 	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 	"github.com/CodisLabs/redis-port/pkg/rdb"
 	"github.com/CodisLabs/redis-port/pkg/redis"
+
 	redigo "github.com/garyburd/redigo/redis"
 )
 
@@ -200,15 +202,122 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	const MaxValueSize = bytesize.MB * 500
+	const MaxValueSize = bytesize.MB * 128
 
 	if len(e.Value) < MaxValueSize {
 		_, err := redigo.String(c.Do("RESTORE", e.Key, ttlms, e.Value, "REPLACE"))
 		if err != nil {
-			log.PanicError(err, "restore command error")
+			log.PanicError(err, "RESTORE command error")
 		}
 	} else {
-		log.Panicf("RDB Payload is too big, size = %d", len(e.Value))
+		o, err := e.ObjEntry()
+		if err != nil {
+			log.PanicErrorf(err, "decode object failed")
+		}
+		const MaxPipeline = 128
+
+		var (
+			wait = &sync.WaitGroup{}
+			send = make(chan []interface{}, MaxPipeline)
+			recv = make(chan struct{}, MaxPipeline)
+		)
+		go func() {
+			for _ = range recv {
+				r, err := c.Receive()
+				if err != nil {
+					log.PanicErrorf(err, "receive error")
+				}
+				if err, ok := r.(redigo.Error); ok {
+					log.PanicErrorf(err, "receive error")
+				}
+				wait.Done()
+			}
+		}()
+		go func() {
+			defer close(recv)
+			for args := range send {
+				if err := c.Send(args[0].(string), args[1:]...); err != nil {
+					log.PanicErrorf(err, "send error")
+				}
+				if len(send) == 0 || len(recv) == cap(recv) {
+					if err := c.Flush(); err != nil {
+						log.PanicErrorf(err, "flush error")
+					}
+				}
+				recv <- struct{}{}
+			}
+		}()
+		defer func() {
+			close(send)
+			wait.Wait()
+		}()
+
+		sendCommand := func(args ...interface{}) {
+			wait.Add(1)
+			send <- args
+		}
+
+		switch o.Value.(type) {
+		default:
+			log.Panicf("unknown object %v", e)
+		case rdb.String:
+			sendCommand("SET", o.Key, []byte(o.Value.(rdb.String)))
+		case rdb.List:
+			sendCommand("DEL", o.Key)
+			var list = o.Value.(rdb.List)
+			for len(list) != 0 {
+				var args = []interface{}{
+					"RPUSH", o.Key,
+				}
+				for i := 0; i < 30 && len(list) != 0; i++ {
+					args = append(args, list[0])
+					list = list[1:]
+				}
+				sendCommand(args)
+			}
+		case rdb.Hash:
+			sendCommand("DEL", o.Key)
+			var hash = o.Value.(rdb.Hash)
+			for len(hash) != 0 {
+				var args = []interface{}{
+					"HMSET", o.Key,
+				}
+				for i := 0; i < 30 && len(hash) != 0; i++ {
+					args = append(args, hash[0].Field, hash[0].Value)
+					hash = hash[1:]
+				}
+				sendCommand(args)
+			}
+		case rdb.ZSet:
+			sendCommand("DEL", o.Key)
+			var zset = o.Value.(rdb.ZSet)
+			for len(zset) != 0 {
+				var args = []interface{}{
+					"ZADD", o.Key,
+				}
+				for i := 0; i < 30 && len(zset) != 0; i++ {
+					args = append(args, zset[0].Score, zset[0].Member)
+					zset = zset[1:]
+				}
+				sendCommand(args)
+			}
+		case rdb.Set:
+			sendCommand("DEL", o.Key)
+			var dict = o.Value.(rdb.Set)
+			for len(dict) != 0 {
+				var args = []interface{}{
+					"SADD", o.Key,
+				}
+				for i := 0; i < 30 && len(dict) != 0; i++ {
+					args = append(args, dict[0])
+					dict = dict[1:]
+				}
+				sendCommand(args)
+			}
+		}
+		if ttlms != 0 {
+			sendCommand("PEXPIRE", o.Key, ttlms)
+		}
 	}
 }
 
