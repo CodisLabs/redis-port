@@ -280,7 +280,7 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, codis bool) {
 					args = append(args, list[0])
 					list = list[1:]
 				}
-				sendCommand(args)
+				sendCommand(args...)
 			}
 		case rdb.Hash:
 			sendCommand("DEL", o.Key)
@@ -293,7 +293,7 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, codis bool) {
 					args = append(args, hash[0].Field, hash[0].Value)
 					hash = hash[1:]
 				}
-				sendCommand(args)
+				sendCommand(args...)
 			}
 		case rdb.ZSet:
 			sendCommand("DEL", o.Key)
@@ -306,7 +306,7 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, codis bool) {
 					args = append(args, zset[0].Score, zset[0].Member)
 					zset = zset[1:]
 				}
-				sendCommand(args)
+				sendCommand(args...)
 			}
 		case rdb.Set:
 			sendCommand("DEL", o.Key)
@@ -319,7 +319,7 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry, codis bool) {
 					args = append(args, dict[0])
 					dict = dict[1:]
 				}
-				sendCommand(args)
+				sendCommand(args...)
 			}
 		}
 		if ttlms != 0 {
