@@ -8,25 +8,29 @@ parse redis rdb file, sync data between redis master and slave
 * **DECODE** dumped payload to human readable format (hex-encoding)
 
 ```sh
-redis-port decode   [--ncpu=N]  [--input=INPUT]  [--output=OUTPUT]
+redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
 ```
 
 * **RESTORE** rdb file to target redis
 
 ```sh
-redis-port restore  [--ncpu=N]  [--input=INPUT]   --target=TARGET  [--auth=AUTH]   [--extra]  [--faketime=FAKETIME]  [--filterdb=DB]
+redis-port restore  [--ncpu=N] [--parallel=M] [--input=INPUT] \
+    --target=TARGET [--codis]  [--auth=AUTH]  [--faketime=FAKETIME] [--filterdb=DB] [--extra]
 ```
 
 * **DUMP** rdb file from master redis
 
 ```sh
-redis-port dump     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
+redis-port dump     [--ncpu=N] [--parallel=M]  --from=MASTER \
+    [--password=PASSWORD]  [--output=OUTPUT]  [--extra]
 ```
 
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync     [--ncpu=N]   --from=MASTER   [--password=PASSWORD]  --target=TARGET  [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]]  [--filterdb=DB]  [--psync]
+redis-port sync     [--ncpu=N] [--parallel=M]  --from=MASTER \
+    [--password=PASSWORD]   --target=TARGET   [--codis] [--auth=AUTH] \
+    [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
 ```
 
 Options
@@ -34,6 +38,10 @@ Options
 + -n _N_, --ncpu=_N_
 
 > set runtime.GOMAXPROCS to _N_
+
++ -p _M_, --parallel=_M_
+
+> set number of parallel routines
 
 + -i _INPUT_, --input=_INPUT_
 
@@ -62,6 +70,10 @@ Options
 + -e, --extra
 
 > dump or restore following redis backlog commands
+
++ --codis
+
+> target is codis proxy or normal redis instance
 
 + --filterdb=DB
 
