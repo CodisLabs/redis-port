@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodisLabs/codis/pkg/utils/bytesize"
 	"github.com/CodisLabs/codis/pkg/utils/errors"
 	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
@@ -177,17 +178,14 @@ func sendPSyncContinue(br *bufio.Reader, bw *bufio.Writer, runid string, offset 
 }
 
 func sendPSyncAck(bw *bufio.Writer, offset int64) error {
-	cmd := redis.NewCommand("replconf", "ack", offset)
+	cmd := redis.NewCommand("REPLCONF", "ack", offset)
 	return redis.Encode(bw, cmd, true)
 }
 
 func selectDB(c redigo.Conn, db uint32) {
-	s, err := redigo.String(c.Do("select", db))
+	_, err := redigo.String(c.Do("SELECT", db))
 	if err != nil {
-		log.PanicError(err, "select command error")
-	}
-	if s != "OK" {
-		log.Panicf("select command response = '%s', should be 'OK'", s)
+		log.PanicError(err, "SELECT command error")
 	}
 }
 
@@ -202,12 +200,15 @@ func restoreRdbEntry(c redigo.Conn, e *rdb.BinEntry) {
 			ttlms = e.ExpireAt - now
 		}
 	}
-	s, err := redigo.String(c.Do("slotsrestore", e.Key, ttlms, e.Value))
-	if err != nil {
-		log.PanicError(err, "restore command error")
-	}
-	if s != "OK" {
-		log.Panicf("restore command response = '%s', should be 'OK'", s)
+	const MaxValueSize = bytesize.MB * 500
+
+	if len(e.Value) < MaxValueSize {
+		_, err := redigo.String(c.Do("RESTORE", e.Key, ttlms, e.Value, "REPLACE"))
+		if err != nil {
+			log.PanicError(err, "restore command error")
+		}
+	} else {
+		log.Panicf("RDB Payload is too big, size = %d", len(e.Value))
 	}
 }
 
