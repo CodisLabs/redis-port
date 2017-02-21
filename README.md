@@ -15,7 +15,8 @@ redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPU
 
 ```sh
 redis-port restore  [--ncpu=N] [--parallel=M] [--input=INPUT] \
-    --target=TARGET [--codis]  [--auth=AUTH]  [--faketime=FAKETIME] [--filterdb=DB] [--extra]
+    --target=TARGET [--codis]  [--auth=AUTH]  [--faketime=FAKETIME] \
+    [--filterdb=DB] [--extra]
 ```
 
 * **DUMP** rdb file from master redis
@@ -29,8 +30,8 @@ redis-port dump     [--ncpu=N] [--parallel=M]  --from=MASTER [--password=PASSWOR
 
 ```sh
 redis-port sync     [--ncpu=N] [--parallel=M]  --from=MASTER [--password=PASSWORD] \
-     --target=TARGET [--codis] [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] \
-     [--psync]
+     --target=TARGET [--codis] [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] \
+     [--filterdb=DB] [--psync]
 ```
 
 Options
