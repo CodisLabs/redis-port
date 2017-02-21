@@ -29,7 +29,8 @@ redis-port dump     [--ncpu=N] [--parallel=M]  --from=MASTER [--password=PASSWOR
 
 ```sh
 redis-port sync     [--ncpu=N] [--parallel=M]  --from=MASTER [--password=PASSWORD] \
-     --target=TARGET [--codis] [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] [--psync]
+     --target=TARGET [--codis] [--auth=AUTH]  [--sockfile=FILE [--filesize=SIZE]] [--filterdb=DB] \
+     [--psync]
 ```
 
 Options
