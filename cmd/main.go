@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"runtime"
 	"strconv"
 	"strings"
@@ -66,6 +67,7 @@ Usage:
 	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--faketime=FAKETIME] [--extra] [--filterdb=DB] --target=TARGET [--auth=AUTH] [--redis|--codis]
 	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD] [--psync] [--filterdb=DB] --target=TARGET [--auth=AUTH] [--redis|--codis] [--sockfile=FILE [--filesize=SIZE]]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD] [--extra] [--output=OUTPUT]
+	redis-port --version
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
@@ -88,6 +90,13 @@ Options:
 	d, err := docopt.Parse(usage, nil, true, "", false)
 	if err != nil {
 		log.PanicError(err, "parse arguments failed")
+	}
+
+	switch {
+	case d["--version"].(bool):
+		fmt.Println("version:", Version)
+		fmt.Println("compile:", Compile)
+		return
 	}
 
 	if s, ok := d["--ncpu"].(string); ok && s != "" {
