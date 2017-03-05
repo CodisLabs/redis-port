@@ -5,8 +5,29 @@ os:
     - osx
 
 go:
-    - 1.6.2
+    - 1.7.5
+    - 1.6.4
     - 1.5.4
 
 script:
+    - make
     - make gotest
+
+before_deploy:
+    - export   DEPLOY_TARGET=redis-port-${TRAVIS_TAG}-go${TRAVIS_GO_VERSION}-${TRAVIS_OS_NAME}
+    - mv bin ${DEPLOY_TARGET}
+    - zip -r ${DEPLOY_TARGET}.zip ${DEPLOY_TARGET} && tar -czvf ${DEPLOY_TARGET}.tar.gz ${DEPLOY_TARGET}
+
+deploy:
+    provider: releases
+    overwrite: true
+    api_key:
+        secure: lN7Ub0c46tBBaLgo6WxxVZYbcmygNnWxv6bPrLJ1GOgm0cEwwJJfcyRbmjc46IrEiI8jeT7zuoywlKYl0ARdHT1LlXO/eiIGB4FgHBg6TFRVFsDv9BuNNpM8IPbgAqeZjUju0+s5AoG/kWfjV70QyKcima9VMxhCGNZLlzwGvjs=
+    file:
+        - ${DEPLOY_TARGET}.zip
+        - ${DEPLOY_TARGET}.tar.gz
+    skip_cleanup: true
+    on:
+        repo: CodisLabs/redis-port
+        tags: true
+        go: '1.7.5'
