@@ -32,9 +32,10 @@ redis-port dump      [--ncpu=N] [--parallel=M] \
 * **SYNC** data from master to slave
 
 ```sh
-redis-port sync      [--ncpu=N] [--parallel=M] \
-     --from=MASTER   [--password=PASSWORD] [--psync] [--filterdb=DB] \
-     --target=TARGET [--auth=AUTH] [--redis|--codis] [--sockfile=FILE [--filesize=SIZE]]
+redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER  \
+    [--password=PASSWORD] [--psync] [--filterdb=DB] --target=TARGET \
+    [--auth=AUTH] [--redis|--codis] [--sockfile=FILE [--filesize=SIZE]] \
+    [--keyfile=FILE] [--keypattern=string]
 ```
 
 Options
