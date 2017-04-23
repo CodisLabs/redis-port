@@ -22,6 +22,7 @@ import (
 	"github.com/CodisLabs/redis-port/pkg/redis"
 
 	redigo "github.com/garyburd/redigo/redis"
+	"io/ioutil"
 )
 
 func openRedisConn(target, passwd string) redigo.Conn {
@@ -376,4 +377,19 @@ func newRDBLoader(reader *bufio.Reader, rbytes *atomic2.Int64, size int) chan *r
 		}
 	}()
 	return pipe
+}
+
+func GetSpecifiedKeys(name string) map[string]bool {
+	buf, err := ioutil.ReadFile(name)
+	if err != nil {
+		log.PanicError(err, "read specified key list file error")
+		return nil
+	}
+	keys := strings.Split(string(buf), "\n")
+	dict := make(map[string]bool, len(keys))
+	for i, key := range keys {
+		log.Infof("line %d:specified key is %s\n", i, key)
+		dict[key] = true
+	}
+	return dict
 }

@@ -87,8 +87,9 @@ func (cmd *cmdSync) Main() {
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
 
-	cmd.SyncRDBFile(reader, target, args.auth, nsize, args.codis)
-	cmd.SyncCommand(reader, target, args.auth)
+	keys := GetSpecifiedKeys(args.keyfile)
+	cmd.SyncRDBFile(reader, target, args.auth, nsize, args.codis, keys)
+	cmd.SyncCommand(reader, target, args.auth, keys)
 }
 
 func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
@@ -186,7 +187,7 @@ func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer
 	}
 }
 
-func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool) {
+func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool, keys map[string]bool) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -204,6 +205,11 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 					if !acceptDB(e.DB) {
 						cmd.ignore.Incr()
 					} else {
+						if keys[string(e.Key)] != true {
+							log.Infof("the key %s is not specified", e.Key)
+							continue
+						}
+						log.Infof("redis-port is restoring the key %s", e.Key)
 						cmd.nentry.Incr()
 						if e.DB != lastdb {
 							lastdb = e.DB
@@ -237,7 +243,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 	log.Info("sync rdb done")
 }
 
-func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
+func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string, keys map[string]bool) {
 	c := openNetConn(target, passwd)
 	defer c.Close()
 
@@ -254,10 +260,19 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 	go func() {
 		var bypass bool = false
 		for {
+			var key string
 			resp := redis.MustDecode(reader)
 			if scmd, args, err := redis.ParseArgs(resp); err != nil {
 				log.PanicError(err, "parse command arguments failed")
 			} else if scmd != "ping" {
+				if len(args) >= 1 {
+					key = string(args[0])
+					log.Infof("receiving command:%s,key is %s", scmd, key)
+					if keys[key] != true {
+						log.Infof("the key %s is not specified", key)
+						continue
+					}
+				}
 				if scmd == "select" {
 					if len(args) != 1 {
 						log.Panicf("select command len(args) = %d", len(args))
@@ -268,6 +283,8 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string) {
 						log.PanicErrorf(err, "parse db = %s failed", s)
 					}
 					bypass = !acceptDB(uint32(n))
+				} else if len(args) >= 1 {
+					log.Infof("redis-port is syncing command,the key is %s", key)
 				}
 				if bypass {
 					cmd.nbypass.Incr()
