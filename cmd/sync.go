@@ -209,23 +209,25 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd, pattern st
 					if !acceptDB(e.DB) {
 						cmd.ignore.Incr()
 					} else {
-						var matched bool
-						var err error
-						key := string(e.Key)
-						if nil != keys && keys[key] == true {
-							matched = true
-						}
-						if !matched && pattern != "" {
-							matched, err = regexp.MatchString(pattern, key)
-							if err != nil {
-								log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+						if nil != keys || pattern != "" {
+							var matched bool
+							var err error
+							key := string(e.Key)
+							if nil != keys && keys[key] == true {
+								matched = true
 							}
+							if !matched && pattern != "" {
+								matched, err = regexp.MatchString(pattern, key)
+								if err != nil {
+									log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+								}
+							}
+							if !matched {
+								log.Infof("the key %s is not specified", key)
+								continue
+							}
+							log.Infof("redis-port is restoring the key %s", key)
 						}
-						if !matched {
-							log.Infof("the key %s is not specified", key)
-							continue
-						}
-						log.Infof("redis-port is restoring the key %s", key)
 						cmd.nentry.Incr()
 						if e.DB != lastdb {
 							lastdb = e.DB
@@ -284,19 +286,21 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd, pattern st
 				if len(args) >= 1 {
 					key = string(args[0])
 					log.Infof("receiving command:%s,key is %s", scmd, key)
-					var matched bool
-					if nil != keys && keys[key] == true {
-						matched = true
-					}
-					if !matched && pattern != "" {
-						matched, err = regexp.MatchString(pattern, key)
-						if err != nil {
-							log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+					if nil != keys || pattern != "" {
+						var matched bool
+						if nil != keys && keys[key] == true {
+							matched = true
 						}
-					}
-					if !matched {
-						log.Infof("the key %s is not specified", key)
-						continue
+						if !matched && pattern != "" {
+							matched, err = regexp.MatchString(pattern, key)
+							if err != nil {
+								log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+							}
+						}
+						if !matched {
+							log.Infof("the key %s is not specified", key)
+							continue
+						}
 					}
 				}
 				if scmd == "select" {
