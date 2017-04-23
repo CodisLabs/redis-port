@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -392,4 +393,23 @@ func GetSpecifiedKeys(name string) map[string]bool {
 		dict[key] = true
 	}
 	return dict
+}
+
+func IsSpecifiedKey(key, pattern string, keys map[string]bool) bool {
+	var matched bool
+	var err error
+	if nil != keys && keys[key] == true {
+		matched = true
+		return matched
+	}
+	if pattern != "" {
+		matched, err = regexp.MatchString(pattern, key)
+		if err != nil {
+			log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+		}
+	}
+	if !matched {
+		log.Infof("the key %s is not specified", key)
+	}
+	return matched
 }

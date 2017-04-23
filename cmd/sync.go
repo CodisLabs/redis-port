@@ -18,7 +18,6 @@ import (
 	"github.com/CodisLabs/redis-port/pkg/libs/io/pipe"
 	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 	"github.com/CodisLabs/redis-port/pkg/redis"
-	"regexp"
 )
 
 type cmdSync struct {
@@ -210,20 +209,8 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd, pattern st
 						cmd.ignore.Incr()
 					} else {
 						if nil != keys || pattern != "" {
-							var matched bool
-							var err error
 							key := string(e.Key)
-							if nil != keys && keys[key] == true {
-								matched = true
-							}
-							if !matched && pattern != "" {
-								matched, err = regexp.MatchString(pattern, key)
-								if err != nil {
-									log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
-								}
-							}
-							if !matched {
-								log.Infof("the key %s is not specified", key)
+							if !IsSpecifiedKey(key, pattern, keys) {
 								continue
 							}
 							log.Infof("redis-port is restoring the key %s", key)
@@ -287,18 +274,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd, pattern st
 					key = string(args[0])
 					log.Infof("receiving command:%s,key is %s", scmd, key)
 					if nil != keys || pattern != "" {
-						var matched bool
-						if nil != keys && keys[key] == true {
-							matched = true
-						}
-						if !matched && pattern != "" {
-							matched, err = regexp.MatchString(pattern, key)
-							if err != nil {
-								log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
-							}
-						}
-						if !matched {
-							log.Infof("the key %s is not specified", key)
+						if !IsSpecifiedKey(key, pattern, keys) {
 							continue
 						}
 					}
