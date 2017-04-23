@@ -87,7 +87,10 @@ func (cmd *cmdSync) Main() {
 
 	reader := bufio.NewReaderSize(input, ReaderBufferSize)
 
-	keys := GetSpecifiedKeys(args.keyfile)
+	var keys map[string]bool
+	if args.keyfile != "" {
+		keys = GetSpecifiedKeys(args.keyfile)
+	}
 	cmd.SyncRDBFile(reader, target, args.auth, nsize, args.codis, keys)
 	cmd.SyncCommand(reader, target, args.auth, keys)
 }
@@ -205,7 +208,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 					if !acceptDB(e.DB) {
 						cmd.ignore.Incr()
 					} else {
-						if keys[string(e.Key)] != true {
+						if nil != keys && keys[string(e.Key)] != true {
 							log.Infof("the key %s is not specified", e.Key)
 							continue
 						}
@@ -268,7 +271,7 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string, key
 				if len(args) >= 1 {
 					key = string(args[0])
 					log.Infof("receiving command:%s,key is %s", scmd, key)
-					if keys[key] != true {
+					if nil != keys && keys[key] != true {
 						log.Infof("the key %s is not specified", key)
 						continue
 					}
