@@ -211,6 +211,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd, pattern st
 						if nil != keys || pattern != "" {
 							key := string(e.Key)
 							if !IsSpecifiedKey(key, pattern, keys) {
+								cmd.ignore.Incr()
 								continue
 							}
 							log.Infof("redis-port is restoring the key %s", key)
@@ -270,15 +271,6 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd, pattern st
 			if scmd, args, err := redis.ParseArgs(resp); err != nil {
 				log.PanicError(err, "parse command arguments failed")
 			} else if scmd != "ping" {
-				if len(args) >= 1 {
-					key = string(args[0])
-					log.Infof("receiving command:%s,key is %s", scmd, key)
-					if nil != keys || pattern != "" {
-						if !IsSpecifiedKey(key, pattern, keys) {
-							continue
-						}
-					}
-				}
 				if scmd == "select" {
 					if len(args) != 1 {
 						log.Panicf("select command len(args) = %d", len(args))
@@ -290,6 +282,14 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd, pattern st
 					}
 					bypass = !acceptDB(uint32(n))
 				} else if len(args) >= 1 {
+					key = string(args[0])
+					log.Infof("receiving command:%s,key is %s", scmd, key)
+					if nil != keys || pattern != "" {
+						if !IsSpecifiedKey(key, pattern, keys) {
+							cmd.ignore.Incr()
+							continue
+						}
+					}
 					log.Infof("redis-port is syncing command,the key is %s", key)
 				}
 				if bypass {
