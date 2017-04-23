@@ -18,6 +18,7 @@ import (
 	"github.com/CodisLabs/redis-port/pkg/libs/io/pipe"
 	"github.com/CodisLabs/redis-port/pkg/libs/stats"
 	"github.com/CodisLabs/redis-port/pkg/redis"
+	"regexp"
 )
 
 type cmdSync struct {
@@ -91,8 +92,8 @@ func (cmd *cmdSync) Main() {
 	if args.keyfile != "" {
 		keys = GetSpecifiedKeys(args.keyfile)
 	}
-	cmd.SyncRDBFile(reader, target, args.auth, nsize, args.codis, keys)
-	cmd.SyncCommand(reader, target, args.auth, keys)
+	cmd.SyncRDBFile(reader, target, args.auth, args.keypattern, nsize, args.codis, keys)
+	cmd.SyncCommand(reader, target, args.auth, args.keypattern, keys)
 }
 
 func (cmd *cmdSync) SendSyncCmd(master, passwd string) (net.Conn, int64) {
@@ -190,7 +191,7 @@ func (cmd *cmdSync) PSyncPipeCopy(c net.Conn, br *bufio.Reader, bw *bufio.Writer
 	}
 }
 
-func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool, keys map[string]bool) {
+func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd, pattern string, nsize int64, codis bool, keys map[string]bool) {
 	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
 	wait := make(chan struct{})
 	go func() {
@@ -208,11 +209,23 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 					if !acceptDB(e.DB) {
 						cmd.ignore.Incr()
 					} else {
-						if nil != keys && keys[string(e.Key)] != true {
-							log.Infof("the key %s is not specified", e.Key)
+						var matched bool
+						var err error
+						key := string(e.Key)
+						if nil != keys && keys[key] == true {
+							matched = true
+						}
+						if !matched && pattern != "" {
+							matched, err = regexp.MatchString(pattern, key)
+							if err != nil {
+								log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+							}
+						}
+						if !matched {
+							log.Infof("the key %s is not specified", key)
 							continue
 						}
-						log.Infof("redis-port is restoring the key %s", e.Key)
+						log.Infof("redis-port is restoring the key %s", key)
 						cmd.nentry.Incr()
 						if e.DB != lastdb {
 							lastdb = e.DB
@@ -246,7 +259,7 @@ func (cmd *cmdSync) SyncRDBFile(reader *bufio.Reader, target, passwd string, nsi
 	log.Info("sync rdb done")
 }
 
-func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string, keys map[string]bool) {
+func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd, pattern string, keys map[string]bool) {
 	c := openNetConn(target, passwd)
 	defer c.Close()
 
@@ -271,7 +284,17 @@ func (cmd *cmdSync) SyncCommand(reader *bufio.Reader, target, passwd string, key
 				if len(args) >= 1 {
 					key = string(args[0])
 					log.Infof("receiving command:%s,key is %s", scmd, key)
-					if nil != keys && keys[key] != true {
+					var matched bool
+					if nil != keys && keys[key] == true {
+						matched = true
+					}
+					if !matched && pattern != "" {
+						matched, err = regexp.MatchString(pattern, key)
+						if err != nil {
+							log.Panicf("regex match key(%s) pattern(%s) error.\n", key, pattern)
+						}
+					}
+					if !matched {
 						log.Infof("the key %s is not specified", key)
 						continue
 					}

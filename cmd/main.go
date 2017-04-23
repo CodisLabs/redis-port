@@ -27,9 +27,10 @@ var args struct {
 	target string
 	extra  bool
 
-	sockfile string
-	keyfile  string
-	filesize int64
+	sockfile   string
+	keyfile    string
+	keypattern string
+	filesize   int64
 
 	shift time.Duration
 	psync bool
@@ -66,7 +67,7 @@ func main() {
 Usage:
 	redis-port decode   [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--output=OUTPUT]
 	redis-port restore  [--ncpu=N]  [--parallel=M]  [--input=INPUT]  [--faketime=FAKETIME] [--extra] [--filterdb=DB] --target=TARGET [--auth=AUTH] [--redis|--codis]
-	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD] [--psync] [--filterdb=DB] --target=TARGET [--auth=AUTH] [--redis|--codis] [--sockfile=FILE [--filesize=SIZE]] [--keyfile=FILE]
+	redis-port sync     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD] [--psync] [--filterdb=DB] --target=TARGET [--auth=AUTH] [--redis|--codis] [--sockfile=FILE [--filesize=SIZE]] [--keyfile=FILE] [--keypattern=string]
 	redis-port dump     [--ncpu=N]  [--parallel=M]   --from=MASTER   [--password=PASSWORD] [--extra] [--output=OUTPUT]
 	redis-port --version
 
@@ -81,7 +82,8 @@ Options:
 	-A AUTH, --auth=AUTH              Set auth password for target.
 	--faketime=FAKETIME               Set current system time to adjust key's expire time.
 	--sockfile=FILE                   Use FILE to as socket buffer, default is disabled.
-	--keyfile=FILE                    Get the list of keys for the specified migration from the file, the file format is one key per line,default is disabled.
+	--keyfile=FILE                    Get the list of keys for the specified migration from the file, the file format is one key per line.
+	--keypattern=PATTERN              Key Pattern.
 	--filesize=SIZE                   Set FILE size, default value is 1gb.
 	-e, --extra                       Set true to send/receive following redis commands, default is false.
 	--redis                           Target is normal redis instance, default is false.
@@ -134,6 +136,7 @@ Options:
 
 	args.sockfile, _ = d["--sockfile"].(string)
 	args.keyfile, _ = d["--keyfile"].(string)
+	args.keypattern, _ = d["--keypattern"].(string)
 
 	args.extra = d["--extra"].(bool)
 	args.psync = d["--psync"].(bool)
