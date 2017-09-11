@@ -66,7 +66,7 @@ func (cmd *cmdSync) Main() {
 	if args.psync {
 		input, nsize = cmd.SendPSyncCmd(from, args.passwd)
 	} else {
-		input, nsize = cmd.SendSyncCmd(from, args.passwd)
+		log.Panicf("SYNC mode is deprecated, please run with option '--psync'.")
 	}
 	defer input.Close()
 
