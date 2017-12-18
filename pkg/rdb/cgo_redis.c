@@ -49,3 +49,7 @@ static const rio redisRioIO = {
 };
 
 void redisRioInit(rio *rdb) { *rdb = redisRioIO; }
+
+int redisRioRead(rio *rdb, void *buf, size_t len) {
+  return rioRead(rdb, buf, len) != 0 ? 0 : -1;
+}

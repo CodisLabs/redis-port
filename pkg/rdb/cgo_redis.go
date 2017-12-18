@@ -18,9 +18,12 @@ package rdb
 import "C"
 
 import (
+	"io"
 	"reflect"
 	"strings"
 	"unsafe"
+
+	"github.com/CodisLabs/codis/pkg/utils/errors"
 )
 
 const redisServerConfig = `
@@ -47,6 +50,15 @@ type redisRio struct {
 
 func (r *redisRio) init() {
 	C.redisRioInit(&r.rdb)
+}
+
+func (r *redisRio) Read(b []byte) error {
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	var ret = C.redisRioRead(&r.rdb, unsafe.Pointer(hdr.Data), C.size_t(hdr.Cap))
+	if ret != 0 {
+		return errors.Trace(io.ErrUnexpectedEOF)
+	}
+	return nil
 }
 
 func unsafeCastToLoader(rdb *C.rio) *Loader {
@@ -92,10 +104,6 @@ func cgoRedisRioUpdateChecksum(rdb *C.rio, checksum C.uint64_t) {
 	loader := unsafeCastToLoader(rdb)
 	loader.onUpdateChecksum(uint64(checksum))
 }
-
-const (
-	C_OK = C.C_OK
-)
 
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
