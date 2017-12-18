@@ -269,8 +269,24 @@ type RedisObject struct {
 	obj unsafe.Pointer
 }
 
+func (o *RedisObject) Type() RedisType {
+	return RedisType(C.redisObjectType(o.obj))
+}
+
+func (o *RedisObject) Encoding() RedisEncoding {
+	return RedisEncoding(C.redisObjectEncoding(o.obj))
+}
+
+func (o *RedisObject) RefCount() int {
+	return int(C.redisObjectRefCount(o.obj))
+}
+
+func (o *RedisObject) IncrRefCount() {
+	C.redisObjectIncrRefCount(o.obj)
+}
+
 func (o *RedisObject) DecrRefCount() {
-	panic("todo")
+	C.redisObjectDecrRefCount(o.obj)
 }
 
 type RedisStringObject struct {

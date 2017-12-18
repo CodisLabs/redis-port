@@ -74,3 +74,10 @@ int redisRioLoadTimeMillisecond(rio *rdb, long long *val) {
 
 void *redisRioLoadObject(rio *rdb, int typ) { return rdbLoadObject(typ, rdb); }
 void *redisRioLoadStringObject(rio *rdb) { return rdbLoadStringObject(rdb); }
+
+int redisObjectType(void *obj) { return ((robj *)obj)->type; }
+int redisObjectEncoding(void *obj) { return ((robj *)obj)->encoding; }
+int redisObjectRefCount(void *obj) { return ((robj *)obj)->refcount; }
+
+void redisObjectIncrRefCount(void *obj) { incrRefCount(obj); }
+void redisObjectDecrRefCount(void *obj) { decrRefCount(obj); }

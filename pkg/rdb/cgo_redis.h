@@ -13,3 +13,11 @@ int redisRioLoadTimeMillisecond(rio *rdb, long long *val);
 
 void *redisRioLoadObject(rio *rdb, int typ);
 void *redisRioLoadStringObject(rio *rdb);
+
+/* API for redisObject */
+int redisObjectType(void *obj);
+int redisObjectEncoding(void *obj);
+int redisObjectRefCount(void *obj);
+
+void redisObjectIncrRefCount(void *obj);
+void redisObjectDecrRefCount(void *obj);
