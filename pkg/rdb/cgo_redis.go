@@ -24,6 +24,7 @@ import (
 	"unsafe"
 
 	"github.com/CodisLabs/codis/pkg/utils/errors"
+	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
 const redisServerConfig = `
@@ -42,23 +43,6 @@ func init() {
 	var buf = strings.TrimSpace(redisServerConfig)
 	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&buf))
 	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
-}
-
-type redisRio struct {
-	rdb C.rio
-}
-
-func (r *redisRio) init() {
-	C.redisRioInit(&r.rdb)
-}
-
-func (r *redisRio) Read(b []byte) error {
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	var ret = C.redisRioRead(&r.rdb, unsafe.Pointer(hdr.Data), C.size_t(hdr.Cap))
-	if ret != 0 {
-		return errors.Trace(io.ErrUnexpectedEOF)
-	}
-	return nil
 }
 
 func unsafeCastToLoader(rdb *C.rio) *Loader {
@@ -103,6 +87,32 @@ func cgoRedisRioFlush(rdb *C.rio) C.int {
 func cgoRedisRioUpdateChecksum(rdb *C.rio, checksum C.uint64_t) {
 	loader := unsafeCastToLoader(rdb)
 	loader.onUpdateChecksum(uint64(checksum))
+}
+
+type redisRio struct {
+	rdb C.rio
+}
+
+func (r *redisRio) init() {
+	C.redisRioInit(&r.rdb)
+}
+
+func (r *redisRio) Read(b []byte) error {
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&b))
+	var ret = C.redisRioRead(&r.rdb, unsafe.Pointer(hdr.Data), C.size_t(hdr.Cap))
+	if ret != 0 {
+		return errors.Trace(io.ErrUnexpectedEOF)
+	}
+	return nil
+}
+
+func (r *redisRio) LoadLen() uint64 {
+	var len C.uint64_t
+	var ret = C.redisRioLoadLen(&r.rdb, &len)
+	if ret != 0 {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadLen() failed")
+	}
+	return uint64(len)
 }
 
 const (
