@@ -1,7 +1,5 @@
 .DEFAULT_GOAL := build-all
 
-export GO15VENDOREXPERIMENT=1
-
 build-all: redis-port
 
 build-deps:
@@ -17,3 +15,7 @@ distclean: clean
 
 gotest:
 	go test ./pkg/...
+
+jemalloc:
+	@cd third_party/jemalloc && \
+		./autogen.sh --with-jemalloc-prefix="je_" && make
