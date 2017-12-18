@@ -32,7 +32,7 @@ static int rioRedisRioFlush(rio *rdb) { return cgoRedisRioFlush(rdb); }
 
 extern void cgoRedisRioUpdateChecksum(rio *rdb, uint64_t checksum);
 static void rioRedisRioUpdateChecksum(rio *rdb, const void *buf, size_t len) {
-  // TODO: rioGenericUpdateChecksum(rdb, buf, len);
+  rioGenericUpdateChecksum(rdb, buf, len);
   cgoRedisRioUpdateChecksum(rdb, rdb->cksum);
 }
 
