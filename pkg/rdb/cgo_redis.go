@@ -16,10 +16,30 @@ package rdb
 // #include "cgo_redis.h"
 //
 import "C"
+
 import (
 	"reflect"
+	"strings"
 	"unsafe"
 )
+
+const redisServerConfig = `
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+list-compress-depth 0
+list-max-ziplist-size -2
+set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+rdbchecksum yes
+rdbcompression yes
+`
+
+func init() {
+	var buf = strings.TrimSpace(redisServerConfig)
+	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&buf))
+	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
+}
 
 type redisRio struct {
 	rdb C.rio

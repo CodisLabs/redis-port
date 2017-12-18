@@ -1,5 +1,19 @@
 #include "cgo_redis.h"
 
+extern void initServerConfig(void);
+extern void loadServerConfigFromString(char *config);
+extern void createSharedObjects(void);
+
+void initRedisServer(const void *buf, size_t len) {
+  initServerConfig();
+  createSharedObjects();
+  if (buf != NULL && len != 0) {
+    sds config = sdsnewlen(buf, len);
+    loadServerConfigFromString(config);
+    sdsfree(config);
+  }
+}
+
 extern size_t cgoRedisRioRead(rio *rdb, void *buf, size_t len);
 static size_t rioRedisRioRead(rio *rdb, void *buf, size_t len) {
   return cgoRedisRioRead(rdb, buf, len);
