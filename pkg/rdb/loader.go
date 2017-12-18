@@ -34,21 +34,40 @@ func NewLoader(r io.Reader) *Loader {
 }
 
 func (l *Loader) onRead(b []byte) int {
-	panic("TODO")
+	n, err := l.r.Read(b)
+	if err != nil {
+		log.PanicErrorf(err, "Read bytes failed.")
+	}
+	l.cursor.offset += int64(n)
+	return n
 }
 
 func (l *Loader) onWrite(b []byte) int {
-	panic("TODO")
+	log.Panicf("Doesn't support write operation.")
+	return 0
 }
 
 func (l *Loader) onTell() int64 {
-	panic("TODO")
+	return l.cursor.offset
 }
 
 func (l *Loader) onFlush() int {
-	panic("TODO")
+	log.Panicf("Doesn't support flush operation.")
+	return 0
 }
 
 func (l *Loader) onUpdateChecksum(checksum uint64) {
+	l.cursor.checksum = checksum
+}
+
+func (l *Loader) Header() {
+	panic("TODO")
+}
+
+func (l *Loader) Footer() {
+	panic("TODO")
+}
+
+func (l *Loader) Next() interface{} {
 	panic("TODO")
 }
