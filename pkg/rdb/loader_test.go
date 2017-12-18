@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"path/filepath"
+	"testing"
 
 	"github.com/CodisLabs/redis-port/pkg/rdb"
 
@@ -61,4 +62,16 @@ func release(databases DatabaseSet) {
 			e.Release()
 		}
 	}
+}
+
+func TestEmptyDatabase(t *testing.T) {
+	databases := loadFromFile("empty_database.rdb")
+	defer release(databases)
+	assert.Must(len(databases) == 0)
+}
+
+func TestEmptyDatabaseNoChecksum(t *testing.T) {
+	databases := loadFromFile("empty_database_nochecksum.rdb")
+	defer release(databases)
+	assert.Must(len(databases) == 0)
 }
