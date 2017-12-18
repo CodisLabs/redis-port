@@ -105,3 +105,19 @@ const NoExpireTime = time.Duration(-1)
 func (l *Loader) Next() interface{} {
 	panic("TODO")
 }
+
+type DBEntry struct {
+	DB     uint64
+	Expire time.Duration
+	Key    *RedisStringObject
+	Value  *RedisObject
+}
+
+func (e *DBEntry) Release() {
+	if obj := e.Key; obj != nil {
+		obj.DecrRefCount()
+	}
+	if obj := e.Value; obj != nil {
+		obj.DecrRefCount()
+	}
+}
