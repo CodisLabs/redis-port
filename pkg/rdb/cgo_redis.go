@@ -13,4 +13,5 @@ package rdb
 // #cgo linux  LDFLAGS: -lrt
 // #cgo linux  LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
 //
+// #include "cgo_redis.h"
 import "C"
