@@ -75,9 +75,39 @@ int redisRioLoadTimeMillisecond(rio *rdb, long long *val) {
 void *redisRioLoadObject(rio *rdb, int typ) { return rdbLoadObject(typ, rdb); }
 void *redisRioLoadStringObject(rio *rdb) { return rdbLoadStringObject(rdb); }
 
+void redisSdsFree(void *ptr) { sdsfree(ptr); }
+
 int redisObjectType(void *obj) { return ((robj *)obj)->type; }
 int redisObjectEncoding(void *obj) { return ((robj *)obj)->encoding; }
 int redisObjectRefCount(void *obj) { return ((robj *)obj)->refcount; }
 
 void redisObjectIncrRefCount(void *obj) { incrRefCount(obj); }
 void redisObjectDecrRefCount(void *obj) { decrRefCount(obj); }
+
+extern void createDumpPayload(rio *payload, robj *o);
+
+void *redisObjectCreateDumpPayload(void *obj, size_t *len) {
+  rio payload;
+  createDumpPayload(&payload, obj);
+  sds buf = payload.io.buffer.ptr;
+  *len = sdslen(buf);
+  return buf;
+}
+
+extern int verifyDumpPayload(const char *buf, size_t len);
+
+void *redisObjectDecodeFromPayload(void *buf, size_t len) {
+  rio payload;
+  if (verifyDumpPayload(buf, len) != C_OK) {
+    return NULL;
+  }
+  int type;
+  robj *obj = NULL;
+  sds iobuf = sdsnewlen(buf, len);
+  rioInitWithBuffer(&payload, iobuf);
+  if ((type = rdbLoadObjectType(&payload)) != -1) {
+    obj = rdbLoadObject(type, &payload);
+  }
+  sdsfree(iobuf);
+  return obj;
+}

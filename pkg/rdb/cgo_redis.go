@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -59,6 +60,13 @@ func unsafeCastToSlice(buf unsafe.Pointer, len C.size_t) []byte {
 		Data: uintptr(buf), Len: int(len), Cap: int(len),
 	}
 	return *(*[]byte)(unsafe.Pointer(hdr))
+}
+
+func unsafeCastToString(buf unsafe.Pointer, len C.size_t) string {
+	var hdr = &reflect.StringHeader{
+		Data: uintptr(buf), Len: int(len),
+	}
+	return *(*string)(unsafe.Pointer(hdr))
 }
 
 //export cgoRedisRioRead
@@ -265,6 +273,33 @@ func (t RedisEncoding) String() string {
 	return fmt.Sprintf("ENCODING_UNKNOWN[%d]", t)
 }
 
+type RedisUnsafeSds struct {
+	Ptr unsafe.Pointer
+	Len int
+
+	LongValue int64
+}
+
+func (p *RedisUnsafeSds) Release() {
+	if p.Ptr != nil {
+		C.redisSdsFree(p.Ptr)
+	}
+}
+
+func (p *RedisUnsafeSds) String() string {
+	if p.Ptr != nil {
+		return string(unsafeCastToSlice(p.Ptr, C.size_t(p.Len)))
+	}
+	return strconv.FormatInt(p.LongValue, 10)
+}
+
+func (p *RedisUnsafeSds) UnsafeString() string {
+	if p.Ptr != nil {
+		return unsafeCastToString(p.Ptr, C.size_t(p.Len))
+	}
+	return strconv.FormatInt(p.LongValue, 10)
+}
+
 type RedisObject struct {
 	obj unsafe.Pointer
 }
@@ -287,6 +322,28 @@ func (o *RedisObject) IncrRefCount() {
 
 func (o *RedisObject) DecrRefCount() {
 	C.redisObjectDecrRefCount(o.obj)
+}
+
+func (o *RedisObject) CreateDumpPayload() string {
+	var sds = o.CreateDumpPayloadUnsafe()
+	var str = sds.String()
+	sds.Release()
+	return str
+}
+
+func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisUnsafeSds {
+	var len C.size_t
+	var ptr = C.redisObjectCreateDumpPayload(o.obj, &len)
+	return &RedisUnsafeSds{ptr, int(len), 0}
+}
+
+func DecodeFromPayload(buf []byte) *RedisObject {
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	var obj = C.redisObjectDecodeFromPayload(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
+	if obj == nil {
+		log.Panicf("Decode From Payload failed.")
+	}
+	return &RedisObject{obj}
 }
 
 type RedisStringObject struct {
