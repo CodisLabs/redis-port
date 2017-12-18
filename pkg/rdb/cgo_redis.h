@@ -27,3 +27,7 @@ void redisObjectDecrRefCount(void *obj);
 
 void *redisObjectCreateDumpPayload(void *obj, size_t *len);
 void *redisObjectDecodeFromPayload(void *buf, size_t len);
+
+/* API for redisObject:string */
+size_t redisStringObjectLen(void *obj);
+void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val);

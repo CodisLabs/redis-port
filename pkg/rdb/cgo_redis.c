@@ -111,3 +111,22 @@ void *redisObjectDecodeFromPayload(void *buf, size_t len) {
   sdsfree(iobuf);
   return obj;
 }
+
+size_t redisStringObjectLen(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
+  return stringObjectLen(o);
+}
+
+void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
+  if (sdsEncodedObject(o)) {
+    *len = sdslen(o->ptr);
+    return o->ptr;
+  } else if (o->encoding == OBJ_ENCODING_INT) {
+    *val = (long)o->ptr;
+    return NULL;
+  }
+  serverPanic("Unknown string encoding");
+}
