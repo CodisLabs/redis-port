@@ -17,6 +17,14 @@ package rdb
 //
 import "C"
 
+type redisRio struct {
+	rdb C.rio
+}
+
+func (r *redisRio) init() {
+	C.redisRioInit(&r.rdb)
+}
+
 const (
 	C_OK = C.C_OK
 )
@@ -24,7 +32,3 @@ const (
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
 )
-
-type redisRio struct {
-	rdb C.rio
-}
