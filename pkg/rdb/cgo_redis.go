@@ -134,6 +134,15 @@ func (r *redisRio) LoadTime() time.Duration {
 	return time.Duration(val) * time.Second
 }
 
+func (r *redisRio) LoadTimeMillisecond() time.Duration {
+	var val C.longlong
+	var ret = C.redisRioLoadTimeMillisecond(&r.rdb, &val)
+	if ret != 0 {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadTimeMillisecond() failed.")
+	}
+	return time.Duration(val) * time.Millisecond
+}
+
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
 )

@@ -65,3 +65,9 @@ int redisRioLoadType(rio *rdb, int *typ) {
 int redisRioLoadTime(rio *rdb, time_t *val) {
   return (*val = rdbLoadTime(rdb)) >= 0 ? 0 : -1;
 }
+
+extern long long rdbLoadMillisecondTime(rio *rdb);
+
+int redisRioLoadTimeMillisecond(rio *rdb, long long *val) {
+  return (*val = rdbLoadMillisecondTime(rdb)) >= 0 ? 0 : -1;
+}
