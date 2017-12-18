@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/CodisLabs/redis-port/pkg/rdb"
@@ -74,4 +75,66 @@ func TestEmptyDatabaseNoChecksum(t *testing.T) {
 	databases := loadFromFile("empty_database_nochecksum.rdb")
 	defer release(databases)
 	assert.Must(len(databases) == 0)
+}
+
+func TestMultipleDatabases(t *testing.T) {
+	databases := loadFromFile("multiple_databases.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1, 2: 1})
+	databases[0].ValidateStringObject("key_in_zeroth_database", "zero")
+	databases[2].ValidateStringObject("key_in_second_database", "second")
+}
+
+func TestIntegerKeys(t *testing.T) {
+	databases := loadFromFile("integer_keys.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 6})
+	databases[0].ValidateStringObject(
+		strconv.Itoa(125),
+		"Positive 8 bit integer")
+	databases[0].ValidateStringObject(
+		strconv.Itoa(0xABAB),
+		"Positive 16 bit integer")
+	databases[0].ValidateStringObject(
+		strconv.Itoa(0x0AEDD325),
+		"Positive 32 bit integer")
+	databases[0].ValidateStringObject(
+		strconv.Itoa(-123),
+		"Negative 8 bit integer")
+	databases[0].ValidateStringObject(
+		strconv.Itoa(-0x7325),
+		"Negative 16 bit integer")
+	databases[0].ValidateStringObject(
+		strconv.Itoa(-0x0AEDD325),
+		"Negative 32 bit integer")
+}
+
+func TestStringKeyWithCompression(t *testing.T) {
+	databases := loadFromFile("easily_compressible_string_key.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var key bytes.Buffer
+	for i := 0; i < 200; i++ {
+		key.WriteByte('a')
+	}
+	databases[0].ValidateStringObject(key.String(),
+		"Key that redis should compress easily")
+}
+
+func TestRdbVersion5WithChecksum(t *testing.T) {
+	databases := loadFromFile("rdb_version_5_with_checksum.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 6})
+	databases[0].ValidateStringObject(
+		"abcd", "efgh")
+	databases[0].ValidateStringObject(
+		"abc", "def")
+	databases[0].ValidateStringObject(
+		"foo", "bar")
+	databases[0].ValidateStringObject(
+		"bar", "baz")
+	databases[0].ValidateStringObject(
+		"abcdef", "abcdef")
+	databases[0].ValidateStringObject(
+		"longerstring", "thisisalongerstring.idontknowwhatitmeans")
 }
