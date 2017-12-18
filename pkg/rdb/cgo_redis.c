@@ -57,3 +57,7 @@ int redisRioRead(rio *rdb, void *buf, size_t len) {
 int redisRioLoadLen(rio *rdb, uint64_t *len) {
   return (*len = rdbLoadLen(rdb, NULL)) != RDB_LENERR ? 0 : -1;
 }
+
+int redisRioLoadType(rio *rdb, int *typ) {
+  return (*typ = rdbLoadType(rdb)) >= 0 ? 0 : -1;
+}

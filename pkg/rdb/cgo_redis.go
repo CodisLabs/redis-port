@@ -115,6 +115,15 @@ func (r *redisRio) LoadLen() uint64 {
 	return uint64(len)
 }
 
+func (r *redisRio) LoadType() int {
+	var typ C.int
+	var ret = C.redisRioLoadType(&r.rdb, &typ)
+	if ret != 0 {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadType() failed.")
+	}
+	return int(typ)
+}
+
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
 )
