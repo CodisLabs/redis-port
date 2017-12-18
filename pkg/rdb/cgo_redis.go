@@ -18,6 +18,7 @@ package rdb
 import "C"
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 	"strings"
@@ -187,6 +188,82 @@ const (
 	RDB_TYPE_LIST_QUICKLIST   = int(C.RDB_TYPE_LIST_QUICKLIST)
 	RDB_TYPE_STREAM_LISTPACKS = int(C.RDB_TYPE_STREAM_LISTPACKS)
 )
+
+const (
+	OBJ_STRING = RedisType(C.OBJ_STRING)
+	OBJ_LIST   = RedisType(C.OBJ_LIST)
+	OBJ_SET    = RedisType(C.OBJ_SET)
+	OBJ_ZSET   = RedisType(C.OBJ_ZSET)
+	OBJ_HASH   = RedisType(C.OBJ_HASH)
+	OBJ_MODULE = RedisType(C.OBJ_MODULE)
+	OBJ_STREAM = RedisType(C.OBJ_STREAM)
+)
+
+type RedisType int
+
+func (t RedisType) String() string {
+	switch t {
+	case OBJ_STRING:
+		return "OBJ_STRING"
+	case OBJ_LIST:
+		return "OBJ_LIST"
+	case OBJ_SET:
+		return "OBJ_SET"
+	case OBJ_ZSET:
+		return "OBJ_ZSET"
+	case OBJ_HASH:
+		return "OBJ_HASH"
+	case OBJ_MODULE:
+		return "OBJ_MODULE"
+	case OBJ_STREAM:
+		return "OBJ_STREAM"
+	}
+	return fmt.Sprintf("OBJ_UNKNOWN[%d]", t)
+}
+
+const (
+	OBJ_ENCODING_RAW        = RedisEncoding(C.OBJ_ENCODING_RAW)
+	OBJ_ENCODING_INT        = RedisEncoding(C.OBJ_ENCODING_INT)
+	OBJ_ENCODING_HT         = RedisEncoding(C.OBJ_ENCODING_HT)
+	OBJ_ENCODING_ZIPMAP     = RedisEncoding(C.OBJ_ENCODING_ZIPMAP)
+	OBJ_ENCODING_LINKEDLIST = RedisEncoding(C.OBJ_ENCODING_LINKEDLIST)
+	OBJ_ENCODING_ZIPLIST    = RedisEncoding(C.OBJ_ENCODING_ZIPLIST)
+	OBJ_ENCODING_INTSET     = RedisEncoding(C.OBJ_ENCODING_INTSET)
+	OBJ_ENCODING_SKIPLIST   = RedisEncoding(C.OBJ_ENCODING_SKIPLIST)
+	OBJ_ENCODING_EMBSTR     = RedisEncoding(C.OBJ_ENCODING_EMBSTR)
+	OBJ_ENCODING_QUICKLIST  = RedisEncoding(C.OBJ_ENCODING_QUICKLIST)
+	OBJ_ENCODING_STREAM     = RedisEncoding(C.OBJ_ENCODING_STREAM)
+)
+
+type RedisEncoding int
+
+func (t RedisEncoding) String() string {
+	switch t {
+	case OBJ_ENCODING_RAW:
+		return "ENCODING_RAW"
+	case OBJ_ENCODING_INT:
+		return "ENCODING_INT"
+	case OBJ_ENCODING_HT:
+		return "ENCODING_HT"
+	case OBJ_ENCODING_ZIPMAP:
+		return "ENCODING_ZIPMAP"
+	case OBJ_ENCODING_LINKEDLIST:
+		return "ENCODING_LINKEDLIST"
+	case OBJ_ENCODING_ZIPLIST:
+		return "ENCODING_ZIPLIST"
+	case OBJ_ENCODING_INTSET:
+		return "ENCODING_INTSET"
+	case OBJ_ENCODING_SKIPLIST:
+		return "ENCODING_SKIPLIST"
+	case OBJ_ENCODING_EMBSTR:
+		return "ENCODING_EMBSTR"
+	case OBJ_ENCODING_QUICKLIST:
+		return "ENCODING_QUICKLIST"
+	case OBJ_ENCODING_STREAM:
+		return "ENCODING_STREAM"
+	}
+	return fmt.Sprintf("ENCODING_UNKNOWN[%d]", t)
+}
 
 type RedisObject struct {
 	obj unsafe.Pointer
