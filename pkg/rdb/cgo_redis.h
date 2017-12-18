@@ -10,3 +10,6 @@ int redisRioLoadLen(rio *rdb, uint64_t *len);
 int redisRioLoadType(rio *rdb, int *typ);
 int redisRioLoadTime(rio *rdb, time_t *val);
 int redisRioLoadTimeMillisecond(rio *rdb, long long *val);
+
+void *redisRioLoadObject(rio *rdb, int typ);
+void *redisRioLoadStringObject(rio *rdb);

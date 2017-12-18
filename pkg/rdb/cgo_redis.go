@@ -144,11 +144,19 @@ func (r *redisRio) LoadTimeMillisecond() time.Duration {
 }
 
 func (r *redisRio) LoadObject(typ int) *RedisObject {
-	panic("TODO")
+	var obj = C.redisRioLoadObject(&r.rdb, C.int(typ))
+	if obj == nil {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadObject() failed.")
+	}
+	return &RedisObject{obj}
 }
 
 func (r *redisRio) LoadStringObject() *RedisStringObject {
-	panic("TODO")
+	var obj = C.redisRioLoadStringObject(&r.rdb)
+	if obj == nil {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadStringObject() failed.")
+	}
+	return &RedisStringObject{&RedisObject{obj}}
 }
 
 const (
@@ -181,6 +189,7 @@ const (
 )
 
 type RedisObject struct {
+	obj unsafe.Pointer
 }
 
 func (o *RedisObject) DecrRefCount() {

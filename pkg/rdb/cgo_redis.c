@@ -71,3 +71,6 @@ extern long long rdbLoadMillisecondTime(rio *rdb);
 int redisRioLoadTimeMillisecond(rio *rdb, long long *val) {
   return (*val = rdbLoadMillisecondTime(rdb)) >= 0 ? 0 : -1;
 }
+
+void *redisRioLoadObject(rio *rdb, int typ) { return rdbLoadObject(typ, rdb); }
+void *redisRioLoadStringObject(rio *rdb) { return rdbLoadStringObject(rdb); }
