@@ -16,6 +16,7 @@ package rdb
 // #include "cgo_redis.h"
 //
 import "C"
+import "unsafe"
 
 type redisRio struct {
 	rdb C.rio
@@ -23,6 +24,31 @@ type redisRio struct {
 
 func (r *redisRio) init() {
 	C.redisRioInit(&r.rdb)
+}
+
+//export cgoRedisRioRead
+func cgoRedisRioRead(rdb *C.rio, buf unsafe.Pointer, len C.size_t) C.size_t {
+	panic("TODO")
+}
+
+//export cgoRedisRioWrite
+func cgoRedisRioWrite(rdb *C.rio, buf unsafe.Pointer, len C.size_t) C.size_t {
+	panic("TODO")
+}
+
+//export cgoRedisRioTell
+func cgoRedisRioTell(rdb *C.rio) C.off_t {
+	panic("TODO")
+}
+
+//export cgoRedisRioFlush
+func cgoRedisRioFlush(rdb *C.rio) C.int {
+	panic("TODO")
+}
+
+//export cgoRedisRioUpdateChecksum
+func cgoRedisRioUpdateChecksum(rdb *C.rio, checksum C.uint64_t) {
+	panic("TODO")
 }
 
 const (
