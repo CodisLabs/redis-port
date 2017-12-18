@@ -24,3 +24,7 @@ const (
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
 )
+
+type redisRio struct {
+	rdb C.rio
+}
