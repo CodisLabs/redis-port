@@ -102,10 +102,6 @@ func (l *Loader) Footer() {
 
 const NoExpireTime = time.Duration(-1)
 
-func (l *Loader) Next() interface{} {
-	panic("TODO")
-}
-
 type DBEntry struct {
 	DB     uint64
 	Expire time.Duration
@@ -119,5 +115,47 @@ func (e *DBEntry) Release() {
 	}
 	if obj := e.Value; obj != nil {
 		obj.DecrRefCount()
+	}
+}
+
+func (l *Loader) Next() *DBEntry {
+	for {
+		expire := NoExpireTime
+		opcode := l.rio.LoadType()
+		switch opcode {
+		case RDB_OPCODE_EXPIRETIME:
+			expire = l.rio.LoadTime()
+			opcode = l.rio.LoadType()
+		case RDB_OPCODE_EXPIRETIME_MS:
+			expire = l.rio.LoadTimeMillisecond()
+			opcode = l.rio.LoadType()
+		case RDB_OPCODE_EOF:
+			return nil
+		case RDB_OPCODE_SELECTDB:
+			l.cursor.db = l.rio.LoadLen()
+			continue
+		case RDB_OPCODE_RESIZEDB:
+			l.rio.LoadLen()
+			l.rio.LoadLen()
+			continue
+		case RDB_OPCODE_AUX:
+			l.rio.LoadStringObject().DecrRefCount()
+			l.rio.LoadStringObject().DecrRefCount()
+			continue
+		}
+
+		switch opcode {
+		case RDB_TYPE_MODULE, RDB_TYPE_MODULE_2:
+			log.Panicf("Don't support module object yet.")
+		case RDB_TYPE_STREAM_LISTPACKS:
+			log.Panicf("Don't support stream object yet.")
+		}
+
+		return &DBEntry{
+			DB:     l.cursor.db,
+			Expire: expire,
+			Key:    l.rio.LoadStringObject(),
+			Value:  l.rio.LoadObject(opcode),
+		}
 	}
 }

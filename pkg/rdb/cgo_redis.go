@@ -143,7 +143,7 @@ func (r *redisRio) LoadTimeMillisecond() time.Duration {
 	return time.Duration(val) * time.Millisecond
 }
 
-func (r *redisRio) LoadObject() *RedisObject {
+func (r *redisRio) LoadObject(typ int) *RedisObject {
 	panic("TODO")
 }
 
