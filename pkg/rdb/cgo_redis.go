@@ -143,6 +143,50 @@ func (r *redisRio) LoadTimeMillisecond() time.Duration {
 	return time.Duration(val) * time.Millisecond
 }
 
+func (r *redisRio) LoadObject() *RedisObject {
+	panic("TODO")
+}
+
+func (r *redisRio) LoadStringObject() *RedisStringObject {
+	panic("TODO")
+}
+
 const (
 	RDB_VERSION = int64(C.RDB_VERSION)
 )
+
+const (
+	RDB_OPCODE_AUX           = int(C.RDB_OPCODE_AUX)
+	RDB_OPCODE_EOF           = int(C.RDB_OPCODE_EOF)
+	RDB_OPCODE_EXPIRETIME    = int(C.RDB_OPCODE_EXPIRETIME)
+	RDB_OPCODE_EXPIRETIME_MS = int(C.RDB_OPCODE_EXPIRETIME_MS)
+	RDB_OPCODE_RESIZEDB      = int(C.RDB_OPCODE_RESIZEDB)
+	RDB_OPCODE_SELECTDB      = int(C.RDB_OPCODE_SELECTDB)
+
+	RDB_TYPE_STRING           = int(C.RDB_TYPE_STRING)
+	RDB_TYPE_LIST             = int(C.RDB_TYPE_LIST)
+	RDB_TYPE_SET              = int(C.RDB_TYPE_SET)
+	RDB_TYPE_ZSET             = int(C.RDB_TYPE_ZSET)
+	RDB_TYPE_HASH             = int(C.RDB_TYPE_HASH)
+	RDB_TYPE_ZSET_2           = int(C.RDB_TYPE_ZSET_2)
+	RDB_TYPE_MODULE           = int(C.RDB_TYPE_MODULE)
+	RDB_TYPE_MODULE_2         = int(C.RDB_TYPE_MODULE_2)
+	RDB_TYPE_HASH_ZIPMAP      = int(C.RDB_TYPE_HASH_ZIPMAP)
+	RDB_TYPE_LIST_ZIPLIST     = int(C.RDB_TYPE_LIST_ZIPLIST)
+	RDB_TYPE_SET_INTSET       = int(C.RDB_TYPE_SET_INTSET)
+	RDB_TYPE_ZSET_ZIPLIST     = int(C.RDB_TYPE_ZSET_ZIPLIST)
+	RDB_TYPE_HASH_ZIPLIST     = int(C.RDB_TYPE_HASH_ZIPLIST)
+	RDB_TYPE_LIST_QUICKLIST   = int(C.RDB_TYPE_LIST_QUICKLIST)
+	RDB_TYPE_STREAM_LISTPACKS = int(C.RDB_TYPE_STREAM_LISTPACKS)
+)
+
+type RedisObject struct {
+}
+
+func (o *RedisObject) DecrRefCount() {
+	panic("todo")
+}
+
+type RedisStringObject struct {
+	*RedisObject
+}

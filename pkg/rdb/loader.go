@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
@@ -98,6 +99,8 @@ func (l *Loader) Footer() {
 		}
 	}
 }
+
+const NoExpireTime = time.Duration(-1)
 
 func (l *Loader) Next() interface{} {
 	panic("TODO")
