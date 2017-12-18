@@ -14,4 +14,13 @@ package rdb
 // #cgo linux  LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
 //
 // #include "cgo_redis.h"
+//
 import "C"
+
+const (
+	C_OK = C.C_OK
+)
+
+const (
+	RDB_VERSION = int64(C.RDB_VERSION)
+)
