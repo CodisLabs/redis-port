@@ -1,7 +1,9 @@
 package rdb
 
 import (
+	"encoding/binary"
 	"io"
+	"strconv"
 
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
@@ -61,11 +63,40 @@ func (l *Loader) onUpdateChecksum(checksum uint64) {
 }
 
 func (l *Loader) Header() {
-	panic("TODO")
+	header := make([]byte, 9)
+	if err := l.rio.Read(header); err != nil {
+		log.PanicErrorf(err, "Read RDB header failed.")
+	}
+	if format := string(header[:5]); format != "REDIS" {
+		log.Panicf("Verify magic string, invalid format = '%s'.", format)
+	}
+	n, err := strconv.ParseInt(string(header[5:]), 10, 64)
+	if err != nil {
+		log.PanicErrorf(err, "Try to parse version = '%s'.", header[5:])
+	}
+	switch {
+	case n < 1 || n > RDB_VERSION:
+		log.Panicf("Can't handle RDB format version = %d.", n)
+	default:
+		l.header.version = n
+	}
 }
 
 func (l *Loader) Footer() {
-	panic("TODO")
+	var expected = l.cursor.checksum
+	if l.header.version >= 5 {
+		footer := make([]byte, 8)
+		if err := l.rio.Read(footer); err != nil {
+			log.PanicErrorf(err, "Read RDB footer failed.")
+		}
+		l.footer.checksum = binary.LittleEndian.Uint64(footer)
+		switch {
+		case l.footer.checksum == 0:
+			log.Debugf("RDB file was saved with checksum disabled.")
+		case l.footer.checksum != expected:
+			log.Panicf("Wrong checksum, expected = %#16x, footer = %#16x.", expected, l.footer.checksum)
+		}
+	}
 }
 
 func (l *Loader) Next() interface{} {
