@@ -21,6 +21,7 @@ import (
 	"io"
 	"reflect"
 	"strings"
+	"time"
 	"unsafe"
 
 	"github.com/CodisLabs/codis/pkg/utils/errors"
@@ -122,6 +123,15 @@ func (r *redisRio) LoadType() int {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadType() failed.")
 	}
 	return int(typ)
+}
+
+func (r *redisRio) LoadTime() time.Duration {
+	var val C.time_t
+	var ret = C.redisRioLoadTime(&r.rdb, &val)
+	if ret != 0 {
+		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadTime() failed.")
+	}
+	return time.Duration(val) * time.Second
 }
 
 const (

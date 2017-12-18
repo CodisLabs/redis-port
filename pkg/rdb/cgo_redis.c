@@ -61,3 +61,7 @@ int redisRioLoadLen(rio *rdb, uint64_t *len) {
 int redisRioLoadType(rio *rdb, int *typ) {
   return (*typ = rdbLoadType(rdb)) >= 0 ? 0 : -1;
 }
+
+int redisRioLoadTime(rio *rdb, time_t *val) {
+  return (*val = rdbLoadTime(rdb)) >= 0 ? 0 : -1;
+}
