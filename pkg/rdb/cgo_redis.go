@@ -354,37 +354,37 @@ func (o *RedisObject) AsString() *RedisStringObject {
 	return &RedisStringObject{o}
 }
 
-// func (o *RedisObject) IsList() bool {
-// 	return o.Type() == OBJ_LIST
-// }
-//
-// func (o *RedisObject) AsList() *RedisListObject {
-// 	return &RedisListObject{o}
-// }
-//
-// func (o *RedisObject) IsHash() bool {
-// 	return o.Type() == OBJ_HASH
-// }
-//
-// func (o *RedisObject) AsHash() *RedisHashObject {
-// 	return &RedisHashObject{o}
-// }
-//
-// func (o *RedisObject) IsZset() bool {
-// 	return o.Type() == OBJ_ZSET
-// }
-//
-// func (o *RedisObject) AsZset() *RedisZsetObject {
-// 	return &RedisZsetObject{o}
-// }
-//
-// func (o *RedisObject) IsSet() bool {
-// 	return o.Type() == OBJ_SET
-// }
-//
-// func (o *RedisObject) AsSet() *RedisSetObject {
-// 	return &RedisSetObject{o}
-// }
+func (o *RedisObject) IsList() bool {
+	return o.Type() == OBJ_LIST
+}
+
+func (o *RedisObject) AsList() *RedisListObject {
+	return &RedisListObject{o}
+}
+
+func (o *RedisObject) IsHash() bool {
+	return o.Type() == OBJ_HASH
+}
+
+func (o *RedisObject) AsHash() *RedisHashObject {
+	return &RedisHashObject{o}
+}
+
+func (o *RedisObject) IsZset() bool {
+	return o.Type() == OBJ_ZSET
+}
+
+func (o *RedisObject) AsZset() *RedisZsetObject {
+	return &RedisZsetObject{o}
+}
+
+func (o *RedisObject) IsSet() bool {
+	return o.Type() == OBJ_SET
+}
+
+func (o *RedisObject) AsSet() *RedisSetObject {
+	return &RedisSetObject{o}
+}
 
 type RedisStringObject struct {
 	*RedisObject
@@ -410,3 +410,43 @@ func (o *RedisStringObject) UnsafeString() string {
 	var sds = o.loadUnsafeSds()
 	return sds.UnsafeString()
 }
+
+type RedisListObject struct {
+	*RedisObject
+}
+
+func (o *RedisListObject) Len() int {
+	return int(C.redisListObjectLen(o.obj))
+}
+
+// TODO iterator
+
+type RedisHashObject struct {
+	*RedisObject
+}
+
+func (o *RedisHashObject) Len() int {
+	return int(C.redisHashObjectLen(o.obj))
+}
+
+// TODO iterator
+
+type RedisZsetObject struct {
+	*RedisObject
+}
+
+func (o *RedisZsetObject) Len() int {
+	return int(C.redisZsetObjectLen(o.obj))
+}
+
+// TODO iterator
+
+type RedisSetObject struct {
+	*RedisObject
+}
+
+func (o *RedisSetObject) Len() int {
+	return int(C.redisSetObjectLen(o.obj))
+}
+
+// TODO iterator

@@ -31,3 +31,15 @@ void *redisObjectDecodeFromPayload(void *buf, size_t len);
 /* API for redisObject:string */
 size_t redisStringObjectLen(void *obj);
 void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val);
+
+/* API for redisObject:list */
+size_t redisListObjectLen(void *obj);
+
+/* API for redisObject:hash */
+size_t redisHashObjectLen(void *obj);
+
+/* API for redisObject:zset */
+size_t redisZsetObjectLen(void *obj);
+
+/* API for redisObject:set */
+size_t redisSetObjectLen(void *obj);

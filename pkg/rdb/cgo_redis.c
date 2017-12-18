@@ -130,3 +130,27 @@ void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val) {
   }
   serverPanic("Unknown string encoding");
 }
+
+size_t redisListObjectLen(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_LIST);
+  return listTypeLength(o);
+}
+
+size_t redisHashObjectLen(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);
+  return hashTypeLength(o);
+}
+
+size_t redisZsetObjectLen(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_ZSET);
+  return zsetLength(o);
+}
+
+size_t redisSetObjectLen(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
+  return setTypeSize(o);
+}
