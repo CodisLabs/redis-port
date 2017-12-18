@@ -159,3 +159,14 @@ func (l *Loader) Next() *DBEntry {
 		}
 	}
 }
+
+func (l *Loader) Scan(onEntry func(e *DBEntry) bool) bool {
+	for {
+		switch e := l.Next(); {
+		case e == nil:
+			return false
+		case !onEntry(e):
+			return true
+		}
+	}
+}
