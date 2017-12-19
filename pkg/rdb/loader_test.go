@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/CodisLabs/redis-port/pkg/rdb"
 
@@ -350,4 +351,40 @@ func TestSetRegularSet(t *testing.T) {
 	for _, key := range []string{"alpha", "beta", "gamma", "delta", "phi", "kappa"} {
 		assert.Must(set[key])
 	}
+}
+
+func TestNonASCIIValues(t *testing.T) {
+	databases := loadFromFile("non_ascii_values.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 6})
+	databases[0].ValidateStringObject("int_value", "123")
+	databases[0].ValidateStringObject("378", "int_key_name")
+	databases[0].ValidateStringObject("bin", "\x00\x24\x20\x7e\x30\x7f\xff\x0a\xaa\x09\x80\x0d\x41\x62")
+	databases[0].ValidateStringObject("utf8", "בדיקה𐀏123עברית")
+}
+
+func TestRdbVersion8With64bLengthAndScores(t *testing.T) {
+	databases := loadFromFile("rdb_version_8_with_64b_length_and_scores.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 2})
+	databases[0].ValidateStringObject("foo", "bar")
+	var zset = databases[0].ValidateZsetObject("bigset", 1000)
+	assert.Must(floatEqual(zset["finalfield"], 2.718))
+}
+
+func TestUncompressibleStringKeys(t *testing.T) {
+	databases := loadFromFile("uncompressible_string_keys.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 3})
+}
+
+func TestKeysWithExpiry(t *testing.T) {
+	databases := loadFromFile("keys_with_expiry.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var entry = databases[0]["expires_ms_precision"]
+	assert.Must(entry != nil)
+	assert.Must(entry.Expire != rdb.NoExpireTime)
+	var expire = time.Unix(int64(entry.Expire/time.Second), int64(entry.Expire%time.Second))
+	assert.Must(expire.Format("2006-01-02 15:04:05.000000") == "2022-12-25 10:11:12.573000")
 }
