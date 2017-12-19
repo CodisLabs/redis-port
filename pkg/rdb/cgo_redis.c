@@ -150,8 +150,7 @@ int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val) {
   if (listTypeNext(iter, &entry)) {
     quicklistEntry *qe = &entry.entry;
     if (qe->value) {
-      *ptr = qe->value;
-      *len = qe->sz;
+      *ptr = qe->value, *len = qe->sz;
     } else {
       *val = qe->longval;
     }
@@ -164,6 +163,37 @@ size_t redisHashObjectLen(void *obj) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);
   return hashTypeLength(o);
+}
+
+void *redisHashObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);
+  return hashTypeInitIterator(o);
+}
+
+void redisHashIteratorRelease(void *iter) { hashTypeReleaseIterator(iter); }
+
+static void getHashIteratorCursor(hashTypeIterator *hi, void **ptr, size_t *len,
+                                  long long *val, int what) {
+  if (hi->encoding == OBJ_ENCODING_ZIPLIST) {
+    hashTypeCurrentFromZiplist(hi, what, ptr, len, val);
+  } else if (hi->encoding == OBJ_ENCODING_HT) {
+    sds value = hashTypeCurrentFromHashTable(hi, what);
+    *ptr = value, *len = sdslen(value);
+  } else {
+    serverPanic("Unknown hash encoding");
+  }
+}
+
+int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
+                          long long *kval, void **vptr, size_t *vlen,
+                          long long *vval) {
+  if (hashTypeNext(iter) != C_ERR) {
+    getHashIteratorCursor(iter, kptr, klen, kval, OBJ_HASH_KEY);
+    getHashIteratorCursor(iter, vptr, vlen, vval, OBJ_HASH_VALUE);
+    return 0;
+  }
+  return -1;
 }
 
 size_t redisZsetObjectLen(void *obj) {

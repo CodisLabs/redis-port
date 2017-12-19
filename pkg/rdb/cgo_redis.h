@@ -40,6 +40,11 @@ int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val);
 
 /* API for redisObject:hash */
 size_t redisHashObjectLen(void *obj);
+void *redisHashObjectNewIterator(void *obj);
+void redisHashIteratorRelease(void *iter);
+int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
+                          long long *kval, void **vptr, size_t *vlen,
+                          long long *vval);
 
 /* API for redisObject:zset */
 size_t redisZsetObjectLen(void *obj);

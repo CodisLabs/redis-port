@@ -478,7 +478,65 @@ func (o *RedisHashObject) Len() int {
 	return int(C.redisHashObjectLen(o.obj))
 }
 
-// TODO iterator
+func (o *RedisHashObject) NewIterator() *RedisHashIterator {
+	var iter = C.redisHashObjectNewIterator(o.obj)
+	return &RedisHashIterator{iter}
+}
+
+func (o *RedisHashObject) Map() map[string]string {
+	var hash = make(map[string]string)
+	var iter = o.NewIterator()
+	for {
+		switch k, v := iter.Next(); {
+		case k != nil:
+			hash[k.String()] = v.String()
+		default:
+			iter.Release()
+			return hash
+		}
+	}
+}
+
+func (o *RedisHashObject) UnsafeMap() map[string]string {
+	var hash = make(map[string]string)
+	var iter = o.NewIterator()
+	for {
+		switch k, v := iter.Next(); {
+		case k != nil:
+			hash[k.UnsafeString()] = v.UnsafeString()
+		default:
+			iter.Release()
+			return hash
+		}
+	}
+}
+
+type RedisHashIterator struct {
+	iter unsafe.Pointer
+}
+
+func (p *RedisHashIterator) Release() {
+	C.redisHashIteratorRelease(p.iter)
+}
+
+func (p *RedisHashIterator) Next() (*RedisUnsafeSds, *RedisUnsafeSds) {
+	var k, v struct {
+		ptr unsafe.Pointer
+		len C.size_t
+		val C.longlong
+	}
+	var ret = C.redisHashIteratorNext(p.iter,
+		&k.ptr, &k.len, &k.val,
+		&v.ptr, &v.len, &v.val)
+	if ret != 0 {
+		return nil, nil
+	}
+	return &RedisUnsafeSds{
+			k.ptr, int(k.len), int64(k.val),
+		}, &RedisUnsafeSds{
+			v.ptr, int(v.len), int64(v.val),
+		}
+}
 
 type RedisZsetObject struct {
 	*RedisObject
