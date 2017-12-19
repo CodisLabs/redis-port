@@ -30,6 +30,14 @@ func (d Database) ValidateStringObject(key string, value string) {
 	assert.Must(d[key].Value.AsString().String() == value)
 }
 
+func (d Database) ValidateListObject(key string, size int) []string {
+	assert.Must(d != nil)
+	assert.Must(d[key] != nil)
+	assert.Must(d[key].Value.IsList())
+	assert.Must(d[key].Value.AsList().Len() == size)
+	return d[key].Value.AsList().Strings()
+}
+
 type DatabaseSet map[uint64]Database
 
 func (databases DatabaseSet) ValidateSize(expected map[uint64]int) {
@@ -137,4 +145,21 @@ func TestRdbVersion5WithChecksum(t *testing.T) {
 		"abcdef", "abcdef")
 	databases[0].ValidateStringObject(
 		"longerstring", "thisisalongerstring.idontknowwhatitmeans")
+}
+
+func TestLinkedList(t *testing.T) {
+	databases := loadFromFile("linkedlist.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var list = databases[0].ValidateListObject("force_linkedlist", 1000)
+	var contains = func(key string) bool {
+		for _, s := range list {
+			if s == key {
+				return true
+			}
+		}
+		return false
+	}
+	assert.Must(contains("JYY4GIFI0ETHKP4VAJF5333082J4R1UPNPLE329YT0EYPGHSJQ"))
+	assert.Must(contains("TKBXHJOX9Q99ICF4V78XTCA2Y1UYW6ERL35JCIL1O0KSGXS58S"))
 }

@@ -424,6 +424,34 @@ func (o *RedisListObject) NewIterator() *RedisListIterator {
 	return &RedisListIterator{iter}
 }
 
+func (o *RedisListObject) Strings() []string {
+	var list []string
+	var iter = o.NewIterator()
+	for {
+		switch sds := iter.Next(); {
+		case sds != nil:
+			list = append(list, sds.String())
+		default:
+			iter.Release()
+			return list
+		}
+	}
+}
+
+func (o *RedisListObject) UnsafeStrings() []string {
+	var list []string
+	var iter = o.NewIterator()
+	for {
+		switch sds := iter.Next(); {
+		case sds != nil:
+			list = append(list, sds.UnsafeString())
+		default:
+			iter.Release()
+			return list
+		}
+	}
+}
+
 type RedisListIterator struct {
 	iter unsafe.Pointer
 }
