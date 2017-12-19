@@ -118,7 +118,7 @@ size_t redisStringObjectLen(void *obj) {
   return stringObjectLen(o);
 }
 
-void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val) {
+void *redisStringObjectUnsafeSds(void *obj, size_t *len, long long *val) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
   if (sdsEncodedObject(o)) {
@@ -145,7 +145,7 @@ void *redisListObjectNewIterator(void *obj) {
 
 void redisListIteratorRelease(void *iter) { listTypeReleaseIterator(iter); }
 
-int redisListIteratorNext(void *iter, void **ptr, size_t *len, long *val) {
+int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val) {
   listTypeEntry entry;
   if (listTypeNext(iter, &entry)) {
     quicklistEntry *qe = &entry.entry;

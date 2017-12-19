@@ -30,13 +30,13 @@ void *redisObjectDecodeFromPayload(void *buf, size_t len);
 
 /* API for redisObject:string */
 size_t redisStringObjectLen(void *obj);
-void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val);
+void *redisStringObjectUnsafeSds(void *obj, size_t *len, long long *val);
 
 /* API for redisObject:list */
 size_t redisListObjectLen(void *obj);
 void *redisListObjectNewIterator(void *obj);
 void redisListIteratorRelease(void *iter);
-int redisListIteratorNext(void *iter, void **ptr, size_t *len, long *val);
+int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val);
 
 /* API for redisObject:hash */
 size_t redisHashObjectLen(void *obj);

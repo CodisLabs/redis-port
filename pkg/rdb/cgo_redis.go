@@ -274,10 +274,9 @@ func (t RedisEncoding) String() string {
 }
 
 type RedisUnsafeSds struct {
-	Ptr unsafe.Pointer
-	Len int
-
-	LongValue int64
+	Ptr   unsafe.Pointer
+	Len   int
+	Value int64
 }
 
 func (p *RedisUnsafeSds) Release() {
@@ -290,14 +289,14 @@ func (p *RedisUnsafeSds) String() string {
 	if p.Ptr != nil {
 		return string(unsafeCastToSlice(p.Ptr, C.size_t(p.Len)))
 	}
-	return strconv.FormatInt(p.LongValue, 10)
+	return strconv.FormatInt(p.Value, 10)
 }
 
 func (p *RedisUnsafeSds) UnsafeString() string {
 	if p.Ptr != nil {
 		return unsafeCastToString(p.Ptr, C.size_t(p.Len))
 	}
-	return strconv.FormatInt(p.LongValue, 10)
+	return strconv.FormatInt(p.Value, 10)
 }
 
 type RedisObject struct {
@@ -396,7 +395,7 @@ func (o *RedisStringObject) Len() int {
 
 func (o *RedisStringObject) loadUnsafeSds() *RedisUnsafeSds {
 	var len C.size_t
-	var val C.long
+	var val C.longlong
 	var ptr = C.redisStringObjectUnsafeSds(o.obj, &len, &val)
 	return &RedisUnsafeSds{ptr, int(len), int64(val)}
 }
@@ -463,7 +462,7 @@ func (p *RedisListIterator) Release() {
 func (p *RedisListIterator) Next() *RedisUnsafeSds {
 	var ptr unsafe.Pointer
 	var len C.size_t
-	var val C.long
+	var val C.longlong
 	var ret = C.redisListIteratorNext(p.iter, &ptr, &len, &val)
 	if ret != 0 {
 		return nil
