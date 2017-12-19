@@ -388,3 +388,21 @@ func TestKeysWithExpiry(t *testing.T) {
 	var expire = time.Unix(int64(entry.Expire/time.Second), int64(entry.Expire%time.Second))
 	assert.Must(expire.Format("2006-01-02 15:04:05.000000") == "2022-12-25 10:11:12.573000")
 }
+
+func TestListDecode(t *testing.T) {
+	databases := loadFromFile("list_decode.rdb")
+	defer release(databases)
+	var list = databases[0].ValidateListObject("list", 1000*1000)
+	for i := 0; i < 1000*1000; i++ {
+		assert.Must(list[i] == strconv.Itoa(i))
+	}
+}
+
+func BenchmarkListDecode(b *testing.B) {
+	databases := loadFromFile("list_decode.rdb")
+	defer release(databases)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		databases[0].ValidateListObject("list", 1000*1000)
+	}
+}
