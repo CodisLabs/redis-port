@@ -137,6 +137,29 @@ size_t redisListObjectLen(void *obj) {
   return listTypeLength(o);
 }
 
+void *redisListObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_LIST);
+  return listTypeInitIterator(o, 0, LIST_TAIL);
+}
+
+void redisListIteratorRelease(void *iter) { listTypeReleaseIterator(iter); }
+
+int redisListIteratorNext(void *iter, void **ptr, size_t *len, long *val) {
+  listTypeEntry entry;
+  if (listTypeNext(iter, &entry)) {
+    quicklistEntry *qe = &entry.entry;
+    if (qe->value) {
+      *ptr = qe->value;
+      *len = qe->sz;
+    } else {
+      *val = qe->longval;
+    }
+    return 0;
+  }
+  return -1;
+}
+
 size_t redisHashObjectLen(void *obj) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);

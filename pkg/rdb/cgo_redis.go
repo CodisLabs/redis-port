@@ -419,7 +419,29 @@ func (o *RedisListObject) Len() int {
 	return int(C.redisListObjectLen(o.obj))
 }
 
-// TODO iterator
+func (o *RedisListObject) NewIterator() *RedisListIterator {
+	var iter = C.redisListObjectNewIterator(o.obj)
+	return &RedisListIterator{iter}
+}
+
+type RedisListIterator struct {
+	iter unsafe.Pointer
+}
+
+func (p *RedisListIterator) Release() {
+	C.redisListIteratorRelease(p.iter)
+}
+
+func (p *RedisListIterator) Next() *RedisUnsafeSds {
+	var ptr unsafe.Pointer
+	var len C.size_t
+	var val C.long
+	var ret = C.redisListIteratorNext(p.iter, &ptr, &len, &val)
+	if ret != 0 {
+		return nil
+	}
+	return &RedisUnsafeSds{ptr, int(len), int64(val)}
+}
 
 type RedisHashObject struct {
 	*RedisObject

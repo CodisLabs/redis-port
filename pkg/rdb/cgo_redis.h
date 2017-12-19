@@ -34,6 +34,9 @@ void *redisStringObjectUnsafeSds(void *obj, size_t *len, long *val);
 
 /* API for redisObject:list */
 size_t redisListObjectLen(void *obj);
+void *redisListObjectNewIterator(void *obj);
+void redisListIteratorRelease(void *iter);
+int redisListIteratorNext(void *iter, void **ptr, size_t *len, long *val);
 
 /* API for redisObject:hash */
 size_t redisHashObjectLen(void *obj);
