@@ -182,3 +182,13 @@ func TestHashTable(t *testing.T) {
 	assert.Must(hash["UHS5ESW4HLK8XOGTM39IK1SJEUGVV9WOPK6JYA5QBZSJU84491"] ==
 		"6VULTCV52FXJ8MGVSFTZVAGK2JXZMGQ5F8OVJI0X6GEDDR27RZ")
 }
+
+func TestHashAsZiplist(t *testing.T) {
+	databases := loadFromFile("hash_as_ziplist.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var hash = databases[0].ValidateHashObject("zipmap_compresses_easily", 3)
+	assert.Must(hash["a"] == "aa")
+	assert.Must(hash["aa"] == "aaaa")
+	assert.Must(hash["aaaaa"] == "aaaaaaaaaaaaaa")
+}
