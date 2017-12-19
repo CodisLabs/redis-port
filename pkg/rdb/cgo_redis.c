@@ -44,7 +44,7 @@ static const rio redisRioIO = {
     rioRedisRioUpdateChecksum,
     0,           /* current checksum */
     0,           /* bytes read or written */
-    8192,        /* read/write chunk size */
+    1024 * 1024, /* read/write chunk size */
     {{NULL, 0}}, /* union for io-specific vars */
 };
 
