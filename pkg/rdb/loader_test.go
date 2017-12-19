@@ -47,6 +47,14 @@ func (d Database) ValidateHashObject(key string, size int) map[string]string {
 	return d[key].Value.AsHash().Map()
 }
 
+func (d Database) ValidateSetObject(key string, size int) map[string]bool {
+	assert.Must(d != nil)
+	assert.Must(d[key] != nil)
+	assert.Must(d[key].Value.IsSet())
+	assert.Must(d[key].Value.AsSet().Len() == size)
+	return d[key].Value.AsSet().Map()
+}
+
 type DatabaseSet map[uint64]Database
 
 func (databases DatabaseSet) ValidateSize(expected map[uint64]int) {
@@ -267,4 +275,44 @@ func TestHashAsZipmapWithBigValues(t *testing.T) {
 	assert.Must(len(hash["255bytes"]) == 255)
 	assert.Must(len(hash["300bytes"]) == 300)
 	assert.Must(len(hash["20kbytes"]) == 20000)
+}
+
+func TestSetIntset16(t *testing.T) {
+	databases := loadFromFile("intset_16.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var set = databases[0].ValidateSetObject("intset_16", 3)
+	for _, v := range []int{0x7ffe, 0x7ffd, 0x7ffc} {
+		assert.Must(set[strconv.Itoa(v)])
+	}
+}
+
+func TestSetIntset32(t *testing.T) {
+	databases := loadFromFile("intset_32.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var set = databases[0].ValidateSetObject("intset_32", 3)
+	for _, v := range []int{0x7ffefffe, 0x7ffefffd, 0x7ffefffc} {
+		assert.Must(set[strconv.Itoa(v)])
+	}
+}
+
+func TestSetIntset64(t *testing.T) {
+	databases := loadFromFile("intset_64.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var set = databases[0].ValidateSetObject("intset_64", 3)
+	for _, v := range []int{0x7ffefffefffefffe, 0x7ffefffefffefffd, 0x7ffefffefffefffc} {
+		assert.Must(set[strconv.Itoa(v)])
+	}
+}
+
+func TestSetRegularSet(t *testing.T) {
+	databases := loadFromFile("regular_set.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var set = databases[0].ValidateSetObject("regular_set", 6)
+	for _, key := range []string{"alpha", "beta", "gamma", "delta", "phi", "kappa"} {
+		assert.Must(set[key])
+	}
 }
