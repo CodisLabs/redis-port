@@ -38,6 +38,14 @@ func (d Database) ValidateListObject(key string, size int) []string {
 	return d[key].Value.AsList().Strings()
 }
 
+func (d Database) ValidateHashObject(key string, size int) map[string]string {
+	assert.Must(d != nil)
+	assert.Must(d[key] != nil)
+	assert.Must(d[key].Value.IsHash())
+	assert.Must(d[key].Value.AsHash().Len() == size)
+	return d[key].Value.AsHash().Map()
+}
+
 type DatabaseSet map[uint64]Database
 
 func (databases DatabaseSet) ValidateSize(expected map[uint64]int) {
@@ -162,4 +170,15 @@ func TestLinkedList(t *testing.T) {
 	}
 	assert.Must(contains("JYY4GIFI0ETHKP4VAJF5333082J4R1UPNPLE329YT0EYPGHSJQ"))
 	assert.Must(contains("TKBXHJOX9Q99ICF4V78XTCA2Y1UYW6ERL35JCIL1O0KSGXS58S"))
+}
+
+func TestHashTable(t *testing.T) {
+	databases := loadFromFile("hash_table.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var hash = databases[0].ValidateHashObject("force_dictionary", 1000)
+	assert.Must(hash["ZMU5WEJDG7KU89AOG5LJT6K7HMNB3DEI43M6EYTJ83VRJ6XNXQ"] ==
+		"T63SOS8DQJF0Q0VJEZ0D1IQFCYTIPSBOUIAI9SB0OV57MQR1FI")
+	assert.Must(hash["UHS5ESW4HLK8XOGTM39IK1SJEUGVV9WOPK6JYA5QBZSJU84491"] ==
+		"6VULTCV52FXJ8MGVSFTZVAGK2JXZMGQ5F8OVJI0X6GEDDR27RZ")
 }
