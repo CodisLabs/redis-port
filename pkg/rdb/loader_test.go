@@ -192,3 +192,34 @@ func TestHashAsZiplist(t *testing.T) {
 	assert.Must(hash["aa"] == "aaaa")
 	assert.Must(hash["aaaaa"] == "aaaaaaaaaaaaaa")
 }
+
+func TestHashAsZipmapWithCompression(t *testing.T) {
+	databases := loadFromFile("zipmap_that_compresses_easily.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var hash = databases[0].ValidateHashObject("zipmap_compresses_easily", 3)
+	assert.Must(hash["a"] == "aa")
+	assert.Must(hash["aa"] == "aaaa")
+	assert.Must(hash["aaaaa"] == "aaaaaaaaaaaaaa")
+}
+
+func TestHashAsZipmapWithoutCompression(t *testing.T) {
+	databases := loadFromFile("zipmap_that_doesnt_compress.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var hash = databases[0].ValidateHashObject("zimap_doesnt_compress", 2)
+	assert.Must(hash["MKD1G6"] == "2")
+	assert.Must(hash["YNNXK"] == "F7TI")
+}
+
+func TestHashAsZipmapWithBigValues(t *testing.T) {
+	databases := loadFromFile("zipmap_with_big_values.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var hash = databases[0].ValidateHashObject("zipmap_with_big_values", 5)
+	assert.Must(len(hash["253bytes"]) == 253)
+	assert.Must(len(hash["254bytes"]) == 254)
+	assert.Must(len(hash["255bytes"]) == 255)
+	assert.Must(len(hash["300bytes"]) == 300)
+	assert.Must(len(hash["20kbytes"]) == 20000)
+}
