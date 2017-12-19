@@ -173,12 +173,22 @@ void *redisHashObjectNewIterator(void *obj) {
 
 void redisHashIteratorRelease(void *iter) { hashTypeReleaseIterator(iter); }
 
+static void hashTypeCurrentObjectWrapper(void *iter, void **ptr, size_t *len,
+                                         long long *val, int what) {
+  unsigned char *vstr = NULL;
+  unsigned int vlen;
+  hashTypeCurrentObject(iter, what, &vstr, &vlen, val);
+  if (vstr) {
+    *ptr = vstr, *len = vlen;
+  }
+}
+
 int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
                           long long *kval, void **vptr, size_t *vlen,
                           long long *vval) {
   if (hashTypeNext(iter) != C_ERR) {
-    hashTypeCurrentObject(iter, OBJ_HASH_KEY, kptr, klen, kval);
-    hashTypeCurrentObject(iter, OBJ_HASH_VALUE, vptr, vlen, vval);
+    hashTypeCurrentObjectWrapper(iter, kptr, klen, kval, OBJ_HASH_KEY);
+    hashTypeCurrentObjectWrapper(iter, vptr, vlen, vval, OBJ_HASH_VALUE);
     return 0;
   }
   return -1;
