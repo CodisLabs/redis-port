@@ -121,7 +121,6 @@ DISABLE_FUNCTION(sendChildInfo);
 DISABLE_FUNCTION(sentinelHandleConfiguration);
 DISABLE_FUNCTION(serverLogHexDump);
 DISABLE_FUNCTION(setDeferredMultiBulkLength);
-DISABLE_FUNCTION(setDictType);
 DISABLE_FUNCTION(setExpire);
 DISABLE_FUNCTION(setKey);
 DISABLE_FUNCTION(signalKeyAsReady);

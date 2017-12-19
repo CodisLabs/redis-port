@@ -97,6 +97,16 @@ dictType objectKeyPointerValueDictType = {
 };
 
 // Copied from redis/src/server.c.
+dictType setDictType = {
+    dictSdsHash,       /* hash function */
+    NULL,              /* key dup */
+    NULL,              /* val dup */
+    dictSdsKeyCompare, /* key compare */
+    dictSdsDestructor, /* key destructor */
+    NULL               /* val destructor */
+};
+
+// Copied from redis/src/server.c.
 dictType zsetDictType = {
     dictSdsHash,       /* hash function */
     NULL,              /* key dup */
