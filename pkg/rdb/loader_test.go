@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"testing"
 
@@ -155,7 +156,7 @@ func TestRdbVersion5WithChecksum(t *testing.T) {
 		"longerstring", "thisisalongerstring.idontknowwhatitmeans")
 }
 
-func TestLinkedList(t *testing.T) {
+func TestListAsLinkedList(t *testing.T) {
 	databases := loadFromFile("linkedlist.rdb")
 	defer release(databases)
 	databases.ValidateSize(map[uint64]int{0: 1})
@@ -172,7 +173,51 @@ func TestLinkedList(t *testing.T) {
 	assert.Must(contains("TKBXHJOX9Q99ICF4V78XTCA2Y1UYW6ERL35JCIL1O0KSGXS58S"))
 }
 
-func TestHashTable(t *testing.T) {
+func TestListAsZiplistWithCompression(t *testing.T) {
+	databases := loadFromFile("ziplist_that_compresses_easily.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var list = databases[0].ValidateListObject("ziplist_compresses_easily", 6)
+	for i, length := range []int{6, 12, 18, 24, 30, 36} {
+		assert.Must(len(list[i]) == length)
+		for _, c := range list[i] {
+			assert.Must(c == 'a')
+		}
+	}
+}
+
+func TestListAsZiplistWithoutCompression(t *testing.T) {
+	databases := loadFromFile("ziplist_that_doesnt_compress.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var list = databases[0].ValidateListObject("ziplist_doesnt_compress", 2)
+	sort.Strings(list)
+	assert.Must(list[0] == "aj2410")
+	assert.Must(list[1] == "cc953a17a8e096e76a44169ad3f9ac87c5f8248a403274416179aa9fbd852344")
+}
+
+func TestListAsZiplistWithIntegers(t *testing.T) {
+	databases := loadFromFile("ziplist_with_integers.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var list = databases[0].ValidateListObject("ziplist_with_integers", 24)
+	sort.Strings(list)
+	var expected []string
+	for i := 0; i < 13; i++ {
+		expected = append(expected, strconv.Itoa(i))
+	}
+	for _, v := range []int{
+		-2, 13, 25, -61, 63, 16380, -16000, 65535,
+		-65523, 4194304, 0x7fffffffffffffff} {
+		expected = append(expected, strconv.Itoa(v))
+	}
+	sort.Strings(expected)
+	for i := range list {
+		assert.Must(list[i] == expected[i])
+	}
+}
+
+func TestHashAsHashTable(t *testing.T) {
 	databases := loadFromFile("hash_table.rdb")
 	defer release(databases)
 	databases.ValidateSize(map[uint64]int{0: 1})
