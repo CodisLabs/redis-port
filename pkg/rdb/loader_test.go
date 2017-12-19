@@ -3,6 +3,7 @@ package rdb_test
 import (
 	"bytes"
 	"io/ioutil"
+	"math"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -45,6 +46,14 @@ func (d Database) ValidateHashObject(key string, size int) map[string]string {
 	assert.Must(d[key].Value.IsHash())
 	assert.Must(d[key].Value.AsHash().Len() == size)
 	return d[key].Value.AsHash().Map()
+}
+
+func (d Database) ValidateZsetObject(key string, size int) map[string]float64 {
+	assert.Must(d != nil)
+	assert.Must(d[key] != nil)
+	assert.Must(d[key].Value.IsZset())
+	assert.Must(d[key].Value.AsZset().Len() == size)
+	return d[key].Value.AsZset().Map()
 }
 
 func (d Database) ValidateSetObject(key string, size int) map[string]bool {
@@ -275,6 +284,32 @@ func TestHashAsZipmapWithBigValues(t *testing.T) {
 	assert.Must(len(hash["255bytes"]) == 255)
 	assert.Must(len(hash["300bytes"]) == 300)
 	assert.Must(len(hash["20kbytes"]) == 20000)
+}
+
+func floatEqual(f1, f2 float64) bool {
+	return math.Abs(f1-f2) < 0.1
+}
+
+func TestZsetAsZiplist(t *testing.T) {
+	databases := loadFromFile("sorted_set_as_ziplist.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var zset = databases[0].ValidateZsetObject("sorted_set_as_ziplist", 3)
+	assert.Must(floatEqual(zset["8b6ba6718a786daefa69438148361901"], 1))
+	assert.Must(floatEqual(zset["cb7a24bb7528f934b841b34c3a73e0c7"], 2.37))
+	assert.Must(floatEqual(zset["523af537946b79c4f8369ed39ba78605"], 3.423))
+}
+
+func TestZsetRegularZset(t *testing.T) {
+	databases := loadFromFile("regular_sorted_set.rdb")
+	defer release(databases)
+	databases.ValidateSize(map[uint64]int{0: 1})
+	var zset = databases[0].ValidateZsetObject("force_sorted_set", 500)
+	assert.Must(floatEqual(zset["8URS19PINCX9H1H7UNBF6GWUPZEYCHYGERXAYVAUATVNM2GQRB"], 0.56))
+	assert.Must(floatEqual(zset["UH87QXHHKYH8CGD1NQLWOHPKD3YX5ONPOYAQTMAZAUFBGCFY0N"], 1.01))
+	assert.Must(floatEqual(zset["SKP3TXT7J6IZBRATLNVPUYV1KXU8WNA0SZCBLPCN20XO97SU3R"], 4.82))
+	assert.Must(floatEqual(zset["RJWIR8DLYDF39LG9LVVW68Y32XPIJ7ZD6JYQJHUOWZ34W8R533"], 0.5))
+	assert.Must(floatEqual(zset["HEAWIHTQWGDIBIJHM3SUHMO8WFBPWT8TBDQYREDLWOMV3KBIHA"], 3.14))
 }
 
 func TestSetIntset16(t *testing.T) {
