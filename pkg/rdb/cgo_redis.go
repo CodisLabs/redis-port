@@ -556,4 +556,54 @@ func (o *RedisSetObject) Len() int {
 	return int(C.redisSetObjectLen(o.obj))
 }
 
-// TODO iterator
+func (o *RedisSetObject) Map() map[string]bool {
+	var hash = make(map[string]bool)
+	var iter = o.NewIterator()
+	for {
+		switch sds := iter.Next(); {
+		case sds != nil:
+			hash[sds.String()] = true
+		default:
+			iter.Release()
+			return hash
+		}
+	}
+}
+
+func (o *RedisSetObject) UnsafeMap() map[string]bool {
+	var hash = make(map[string]bool)
+	var iter = o.NewIterator()
+	for {
+		switch sds := iter.Next(); {
+		case sds != nil:
+			hash[sds.UnsafeString()] = true
+		default:
+			iter.Release()
+			return hash
+		}
+	}
+}
+
+func (o *RedisSetObject) NewIterator() *RedisSetIterator {
+	var iter = C.redisSetObjectNewIterator(o.obj)
+	return &RedisSetIterator{iter}
+}
+
+type RedisSetIterator struct {
+	iter unsafe.Pointer
+}
+
+func (p *RedisSetIterator) Release() {
+	C.redisSetIteratorRelease(p.iter)
+}
+
+func (p *RedisSetIterator) Next() *RedisUnsafeSds {
+	var ptr unsafe.Pointer
+	var len C.size_t
+	var val C.longlong
+	var ret = C.redisSetIteratorNext(p.iter, &ptr, &len, &val)
+	if ret != 0 {
+		return nil
+	}
+	return &RedisUnsafeSds{ptr, int(len), int64(val)}
+}

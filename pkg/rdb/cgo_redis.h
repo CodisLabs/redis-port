@@ -51,3 +51,6 @@ size_t redisZsetObjectLen(void *obj);
 
 /* API for redisObject:set */
 size_t redisSetObjectLen(void *obj);
+void *redisSetObjectNewIterator(void *obj);
+void redisSetIteratorRelease(void *iter);
+int redisSetIteratorNext(void *iter, void **ptr, size_t *len, long long *val);

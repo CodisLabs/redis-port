@@ -173,24 +173,12 @@ void *redisHashObjectNewIterator(void *obj) {
 
 void redisHashIteratorRelease(void *iter) { hashTypeReleaseIterator(iter); }
 
-static void getHashIteratorCursor(hashTypeIterator *hi, void **ptr, size_t *len,
-                                  long long *val, int what) {
-  if (hi->encoding == OBJ_ENCODING_ZIPLIST) {
-    hashTypeCurrentFromZiplist(hi, what, ptr, len, val);
-  } else if (hi->encoding == OBJ_ENCODING_HT) {
-    sds value = hashTypeCurrentFromHashTable(hi, what);
-    *ptr = value, *len = sdslen(value);
-  } else {
-    serverPanic("Unknown hash encoding");
-  }
-}
-
 int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
                           long long *kval, void **vptr, size_t *vlen,
                           long long *vval) {
   if (hashTypeNext(iter) != C_ERR) {
-    getHashIteratorCursor(iter, kptr, klen, kval, OBJ_HASH_KEY);
-    getHashIteratorCursor(iter, vptr, vlen, vval, OBJ_HASH_VALUE);
+    hashTypeCurrentObject(iter, OBJ_HASH_KEY, kptr, klen, kval);
+    hashTypeCurrentObject(iter, OBJ_HASH_VALUE, vptr, vlen, vval);
     return 0;
   }
   return -1;
@@ -206,4 +194,27 @@ size_t redisSetObjectLen(void *obj) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
   return setTypeSize(o);
+}
+
+void *redisSetObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
+  return setTypeInitIterator(o);
+}
+
+void redisSetIteratorRelease(void *iter) { setTypeReleaseIterator(iter); }
+
+int redisSetIteratorNext(void *iter, void **ptr, size_t *len, long long *val) {
+  sds value;
+  int64_t llele;
+  int encoding = setTypeNext(iter, &value, &llele);
+  if (encoding != -1) {
+    if (encoding != OBJ_ENCODING_INTSET) {
+      *ptr = value, *len = sdslen(value);
+    } else {
+      *val = llele;
+    }
+    return 0;
+  }
+  return -1;
 }
