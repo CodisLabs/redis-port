@@ -487,9 +487,9 @@ func (o *RedisHashObject) Map() map[string]string {
 	var hash = make(map[string]string)
 	var iter = o.NewIterator()
 	for {
-		switch k, v := iter.Next(); {
-		case k != nil:
-			hash[k.String()] = v.String()
+		switch key, value := iter.Next(); {
+		case key != nil:
+			hash[key.String()] = value.String()
 		default:
 			iter.Release()
 			return hash
@@ -501,9 +501,9 @@ func (o *RedisHashObject) UnsafeMap() map[string]string {
 	var hash = make(map[string]string)
 	var iter = o.NewIterator()
 	for {
-		switch k, v := iter.Next(); {
-		case k != nil:
-			hash[k.UnsafeString()] = v.UnsafeString()
+		switch key, value := iter.Next(); {
+		case key != nil:
+			hash[key.UnsafeString()] = value.UnsafeString()
 		default:
 			iter.Release()
 			return hash
@@ -546,7 +546,58 @@ func (o *RedisZsetObject) Len() int {
 	return int(C.redisZsetObjectLen(o.obj))
 }
 
-// TODO iterator
+func (o *RedisZsetObject) NewIterator() *RedisZsetIterator {
+	var iter = C.redisZsetObjectNewIterator(o.obj)
+	return &RedisZsetIterator{iter}
+}
+
+func (o *RedisZsetObject) Map() map[string]float64 {
+	var zset = make(map[string]float64)
+	var iter = o.NewIterator()
+	for {
+		switch key, score := iter.Next(); {
+		case key != nil:
+			zset[key.String()] = score
+		default:
+			iter.Release()
+			return zset
+		}
+	}
+}
+
+func (o *RedisZsetObject) UnsafeMap() map[string]float64 {
+	var zset = make(map[string]float64)
+	var iter = o.NewIterator()
+	for {
+		switch key, score := iter.Next(); {
+		case key != nil:
+			zset[key.UnsafeString()] = score
+		default:
+			iter.Release()
+			return zset
+		}
+	}
+}
+
+type RedisZsetIterator struct {
+	iter unsafe.Pointer
+}
+
+func (p *RedisZsetIterator) Release() {
+	C.redisZsetIteratorRelease(p.iter)
+}
+
+func (p *RedisZsetIterator) Next() (*RedisUnsafeSds, float64) {
+	var ptr unsafe.Pointer
+	var len C.size_t
+	var val C.longlong
+	var score C.double
+	var ret = C.redisZsetIteratorNext(p.iter, &ptr, &len, &val, &score)
+	if ret != 0 {
+		return nil, 0
+	}
+	return &RedisUnsafeSds{ptr, int(len), int64(val)}, float64(score)
+}
 
 type RedisSetObject struct {
 	*RedisObject
@@ -557,29 +608,29 @@ func (o *RedisSetObject) Len() int {
 }
 
 func (o *RedisSetObject) Map() map[string]bool {
-	var hash = make(map[string]bool)
+	var set = make(map[string]bool)
 	var iter = o.NewIterator()
 	for {
 		switch sds := iter.Next(); {
 		case sds != nil:
-			hash[sds.String()] = true
+			set[sds.String()] = true
 		default:
 			iter.Release()
-			return hash
+			return set
 		}
 	}
 }
 
 func (o *RedisSetObject) UnsafeMap() map[string]bool {
-	var hash = make(map[string]bool)
+	var set = make(map[string]bool)
 	var iter = o.NewIterator()
 	for {
 		switch sds := iter.Next(); {
 		case sds != nil:
-			hash[sds.UnsafeString()] = true
+			set[sds.UnsafeString()] = true
 		default:
 			iter.Release()
-			return hash
+			return set
 		}
 	}
 }

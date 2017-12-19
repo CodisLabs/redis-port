@@ -200,6 +200,69 @@ size_t redisZsetObjectLen(void *obj) {
   return zsetLength(o);
 }
 
+typedef struct {
+  robj *obj;
+  int length;
+  unsigned char *eptr;
+  unsigned char *sptr;
+  zskiplistNode *ln;
+} redisZsetIterator;
+
+void *redisZsetObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssertWithInfo(NULL, o, o->type == OBJ_ZSET);
+
+  redisZsetIterator *it = zcalloc(sizeof(*it));
+  it->obj = obj, it->length = zsetLength(o);
+
+  if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+    unsigned char *zl = o->ptr;
+    it->eptr = ziplistIndex(zl, 0);
+    serverAssertWithInfo(NULL, o, it->eptr != NULL);
+    it->sptr = ziplistNext(zl, it->eptr);
+    serverAssertWithInfo(NULL, o, it->sptr != NULL);
+    return it;
+  } else if (o->encoding == OBJ_ENCODING_SKIPLIST) {
+    zset *zs = o->ptr;
+    zskiplist *zsl = zs->zsl;
+    it->ln = zsl->header->level[0].forward;
+    serverAssertWithInfo(NULL, o, it->ln != NULL);
+    return it;
+  } else {
+    serverPanic("Unknown sorted set encoding");
+  }
+}
+
+void redisZsetIteratorRelease(void *iter) { zfree(iter); }
+
+int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
+                          double *score) {
+  redisZsetIterator *it = iter;
+  if (it->length != 0) {
+    robj *o = it->obj;
+    if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+      unsigned char *vstr = NULL;
+      unsigned int vlen;
+      serverAssertWithInfo(NULL, o, it->eptr != NULL && it->sptr != NULL);
+      serverAssertWithInfo(NULL, o, ziplistGet(it->eptr, &vstr, &vlen, val));
+      if (vstr) {
+        *ptr = vstr, *len = vlen;
+      }
+      *score = zzlGetScore(it->sptr);
+      zzlNext(o->ptr, &it->eptr, &it->sptr);
+    } else {
+      zskiplistNode *ln = it->ln;
+      serverAssertWithInfo(NULL, o, ln != NULL);
+      *ptr = ln->ele, *len = sdslen(ln->ele);
+      *score = ln->score;
+      it->ln = ln->level[0].forward;
+    }
+    it->length--;
+    return 0;
+  }
+  return -1;
+}
+
 size_t redisSetObjectLen(void *obj) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
