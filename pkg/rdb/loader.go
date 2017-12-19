@@ -37,12 +37,12 @@ func NewLoader(r io.Reader) *Loader {
 }
 
 func (l *Loader) onRead(b []byte) int {
-	n, err := l.r.Read(b)
+	n, err := io.ReadFull(l.r, b)
 	if err != nil {
 		log.PanicErrorf(err, "Read bytes failed.")
 	}
 	l.cursor.offset += int64(n)
-	return n
+	return 1
 }
 
 func (l *Loader) onWrite(b []byte) int {
