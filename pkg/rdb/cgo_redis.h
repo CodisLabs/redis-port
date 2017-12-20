@@ -15,7 +15,13 @@ void *redisRioLoadObject(rio *rdb, int typ);
 void *redisRioLoadStringObject(rio *rdb);
 
 /* API for Sds */
-void redisSdsFree(void *buf);
+void redisSdsFree(void *ptr);
+
+typedef struct {
+  void *ptr;
+  size_t len;
+  long long val;
+} redisSds;
 
 /* API for redisObject */
 int redisObjectType(void *obj);

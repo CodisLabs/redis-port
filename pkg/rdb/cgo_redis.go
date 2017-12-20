@@ -273,6 +273,45 @@ func (t RedisEncoding) String() string {
 	return fmt.Sprintf("ENCODING_UNKNOWN[%d]", t)
 }
 
+type RedisSds struct {
+	Ptr   unsafe.Pointer
+	Len   int
+	Value int64
+
+	IsLeak bool
+}
+
+func (p *RedisSds) Release() {
+	if p.IsLeak && p.Ptr != nil {
+		C.redisSdsFree(p.Ptr)
+	}
+}
+
+func (p *RedisSds) IsPointer() bool {
+	return p.Ptr != nil
+}
+
+func (p *RedisSds) IsInteger() bool {
+	return p.Ptr == nil
+}
+
+func (p *RedisSds) String() string {
+	if p.IsInteger() {
+		return strconv.FormatInt(p.Value, 10)
+	}
+	var slice = unsafeCastToSlice(p.Ptr, C.size_t(p.Len))
+	return string(slice)
+}
+
+func (p *RedisSds) StringUnsafe() string {
+	if p.IsInteger() {
+		return strconv.FormatInt(p.Value, 10)
+	}
+	return unsafeCastToString(p.Ptr, C.size_t(p.Len))
+}
+
+// TODO
+
 type RedisUnsafeSds struct {
 	Ptr   unsafe.Pointer
 	Len   int
