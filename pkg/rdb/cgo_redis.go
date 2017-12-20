@@ -483,7 +483,7 @@ func (p *redisSdsBuffer) PopFirst(load func() []C.redisSds) *RedisSds {
 func redisTypeIteratorLoad(iter unsafe.Pointer, size int, loader C.redisTypeIteratorLoader) []C.redisSds {
 	var buf = make([]C.redisSds, size)
 	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisTypeIteratorLoaderInvoke(loader, iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
+	var ret = C.redisTypeIteratorLoaderInvoke(&loader, iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
 	if ret != 0 {
 		return buf[:ret]
 	}

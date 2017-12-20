@@ -66,5 +66,5 @@ size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len);
 /* API for iterator loader */
 typedef size_t (*redisTypeIteratorLoader)(void *iter, redisSds *buf,
                                           size_t len);
-size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader loader, void *iter,
-                                     redisSds *buf, size_t len);
+size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
+                                     void *iter, redisSds *buf, size_t len);
