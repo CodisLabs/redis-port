@@ -118,17 +118,16 @@ size_t redisStringObjectLen(void *obj) {
   return stringObjectLen(o);
 }
 
-void *redisStringObjectUnsafeSds(void *obj, size_t *len, long long *val) {
+void redisStringObjectLoad(void *obj, redisSds *sds) {
   robj *o = obj;
   serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
   if (sdsEncodedObject(o)) {
-    *len = sdslen(o->ptr);
-    return o->ptr;
+    sds->ptr = o->ptr, sds->len = sdslen(o->ptr);
   } else if (o->encoding == OBJ_ENCODING_INT) {
-    *val = (long)o->ptr;
-    return NULL;
+    sds->val = (long)o->ptr;
+  } else {
+    serverPanic("Unknown string encoding");
   }
-  serverPanic("Unknown string encoding");
 }
 
 size_t redisListObjectLen(void *obj) {

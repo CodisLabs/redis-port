@@ -36,7 +36,7 @@ void *redisObjectDecodeFromPayload(void *buf, size_t len);
 
 /* API for redisObject:string */
 size_t redisStringObjectLen(void *obj);
-void *redisStringObjectUnsafeSds(void *obj, size_t *len, long long *val);
+void redisStringObjectLoad(void *obj, redisSds *sds);
 
 /* API for redisObject:list */
 size_t redisListObjectLen(void *obj);

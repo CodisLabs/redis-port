@@ -369,10 +369,10 @@ func (o *RedisObject) CreateDumpPayload() string {
 	return str
 }
 
-func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisUnsafeSds {
+func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisSds {
 	var len C.size_t
 	var ptr = C.redisObjectCreateDumpPayload(o.obj, &len)
-	return &RedisUnsafeSds{ptr, int(len), 0}
+	return &RedisSds{ptr, int(len), 0, true}
 }
 
 func DecodeFromPayload(buf []byte) *RedisObject {
@@ -432,21 +432,18 @@ func (o *RedisStringObject) Len() int {
 	return int(C.redisStringObjectLen(o.obj))
 }
 
-func (o *RedisStringObject) loadUnsafeSds() *RedisUnsafeSds {
-	var len C.size_t
-	var val C.longlong
-	var ptr = C.redisStringObjectUnsafeSds(o.obj, &len, &val)
-	return &RedisUnsafeSds{ptr, int(len), int64(val)}
+func (o *RedisStringObject) loadRedisSds() *RedisSds {
+	var sds C.redisSds
+	C.redisStringObjectLoad(o.obj, &sds)
+	return &RedisSds{sds.ptr, int(sds.len), int64(sds.val), false}
 }
 
 func (o *RedisStringObject) String() string {
-	var sds = o.loadUnsafeSds()
-	return sds.String()
+	return o.loadRedisSds().String()
 }
 
-func (o *RedisStringObject) UnsafeString() string {
-	var sds = o.loadUnsafeSds()
-	return sds.UnsafeString()
+func (o *RedisStringObject) StringUnsafe() string {
+	return o.loadRedisSds().StringUnsafe()
 }
 
 type RedisListObject struct {
