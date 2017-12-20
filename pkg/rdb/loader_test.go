@@ -386,7 +386,8 @@ func TestKeysWithExpiry(t *testing.T) {
 	assert.Must(entry != nil)
 	assert.Must(entry.Expire != rdb.NoExpireTime)
 	var expire = time.Unix(int64(entry.Expire/time.Second), int64(entry.Expire%time.Second))
-	assert.Must(expire.Format("2006-01-02 15:04:05.000000") == "2022-12-25 10:11:12.573000")
+	var utc, _ = time.LoadLocation("UTC")
+	assert.Must(expire.In(utc).Format("2006-01-02 15:04:05.000000") == "2022-12-25 10:11:12.573000")
 }
 
 func TestListDecode(t *testing.T) {
@@ -398,11 +399,28 @@ func TestListDecode(t *testing.T) {
 	}
 }
 
-func BenchmarkListDecode(b *testing.B) {
+func BenchmarkListIterator(b *testing.B) {
 	databases := loadFromFile("list_decode.rdb")
 	defer release(databases)
 	b.ResetTimer()
+	var iter *rdb.RedisListIterator
+	defer func() {
+		if iter != nil {
+			iter.Release()
+		}
+	}()
 	for i := 0; i < b.N; i++ {
-		databases[0].ValidateListObject("list", 1000*1000)
+	try_again:
+		if iter == nil {
+			iter = databases[0]["list"].Value.AsList().NewIterator()
+			goto try_again
+		}
+		if sds := iter.Next(); sds == nil {
+			iter.Release()
+			iter = nil
+			goto try_again
+		} else {
+			sds.UnsafeString()
+		}
 	}
 }
