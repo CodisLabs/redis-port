@@ -114,13 +114,13 @@ void *redisObjectDecodeFromPayload(void *buf, size_t len) {
 
 size_t redisStringObjectLen(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
+  serverAssert(o->type == OBJ_STRING);
   return stringObjectLen(o);
 }
 
 void redisStringObjectLoad(void *obj, redisSds *sds) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_STRING);
+  serverAssert(o->type == OBJ_STRING);
   if (sdsEncodedObject(o)) {
     sds->ptr = o->ptr, sds->len = sdslen(o->ptr);
   } else if (o->encoding == OBJ_ENCODING_INT) {
@@ -132,13 +132,13 @@ void redisStringObjectLoad(void *obj, redisSds *sds) {
 
 size_t redisListObjectLen(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_LIST);
+  serverAssert(o->type == OBJ_LIST);
   return listTypeLength(o);
 }
 
 void *redisListObjectNewIterator(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_LIST);
+  serverAssert(o->type == OBJ_LIST);
   return listTypeInitIterator(o, 0, LIST_TAIL);
 }
 
@@ -168,13 +168,13 @@ size_t redisListIteratorLoad(void *iter, redisSds *buf, size_t len) {
 
 size_t redisHashObjectLen(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);
+  serverAssert(o->type == OBJ_HASH);
   return hashTypeLength(o);
 }
 
 void *redisHashObjectNewIterator(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_HASH);
+  serverAssert(o->type == OBJ_HASH);
   return hashTypeInitIterator(o);
 }
 
@@ -203,7 +203,7 @@ int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
 
 size_t redisZsetObjectLen(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_ZSET);
+  serverAssert(o->type == OBJ_ZSET);
   return zsetLength(o);
 }
 
@@ -217,7 +217,7 @@ typedef struct {
 
 void *redisZsetObjectNewIterator(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_ZSET);
+  serverAssert(o->type == OBJ_ZSET);
 
   redisZsetIterator *it = zcalloc(sizeof(*it));
   it->obj = obj, it->length = zsetLength(o);
@@ -225,15 +225,15 @@ void *redisZsetObjectNewIterator(void *obj) {
   if (o->encoding == OBJ_ENCODING_ZIPLIST) {
     unsigned char *zl = o->ptr;
     it->eptr = ziplistIndex(zl, 0);
-    serverAssertWithInfo(NULL, o, it->eptr != NULL);
+    serverAssert(it->eptr != NULL);
     it->sptr = ziplistNext(zl, it->eptr);
-    serverAssertWithInfo(NULL, o, it->sptr != NULL);
+    serverAssert(it->sptr != NULL);
     return it;
   } else if (o->encoding == OBJ_ENCODING_SKIPLIST) {
     zset *zs = o->ptr;
     zskiplist *zsl = zs->zsl;
     it->ln = zsl->header->level[0].forward;
-    serverAssertWithInfo(NULL, o, it->ln != NULL);
+    serverAssert(it->ln != NULL);
     return it;
   } else {
     serverPanic("Unknown sorted set encoding");
@@ -250,8 +250,8 @@ int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
     if (o->encoding == OBJ_ENCODING_ZIPLIST) {
       unsigned char *vstr = NULL;
       unsigned int vlen;
-      serverAssertWithInfo(NULL, o, it->eptr != NULL && it->sptr != NULL);
-      serverAssertWithInfo(NULL, o, ziplistGet(it->eptr, &vstr, &vlen, val));
+      serverAssert(it->eptr != NULL && it->sptr != NULL);
+      serverAssert(ziplistGet(it->eptr, &vstr, &vlen, val));
       if (vstr) {
         *ptr = vstr, *len = vlen;
       }
@@ -259,7 +259,7 @@ int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
       zzlNext(o->ptr, &it->eptr, &it->sptr);
     } else {
       zskiplistNode *ln = it->ln;
-      serverAssertWithInfo(NULL, o, ln != NULL);
+      serverAssert(ln != NULL);
       *ptr = ln->ele, *len = sdslen(ln->ele);
       *score = ln->score;
       it->ln = ln->level[0].forward;
@@ -272,13 +272,13 @@ int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
 
 size_t redisSetObjectLen(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
+  serverAssert(o->type == OBJ_SET);
   return setTypeSize(o);
 }
 
 void *redisSetObjectNewIterator(void *obj) {
   robj *o = obj;
-  serverAssertWithInfo(NULL, o, o->type == OBJ_SET);
+  serverAssert(o->type == OBJ_SET);
   return setTypeInitIterator(o);
 }
 
