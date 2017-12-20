@@ -61,4 +61,4 @@ size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len);
 size_t redisSetObjectLen(void *obj);
 void *redisSetObjectNewIterator(void *obj);
 void redisSetIteratorRelease(void *iter);
-int redisSetIteratorNext(void *iter, void **ptr, size_t *len, long long *val);
+size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len);

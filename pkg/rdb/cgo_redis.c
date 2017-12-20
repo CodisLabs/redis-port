@@ -298,17 +298,25 @@ void *redisSetObjectNewIterator(void *obj) {
 
 void redisSetIteratorRelease(void *iter) { setTypeReleaseIterator(iter); }
 
-int redisSetIteratorNext(void *iter, void **ptr, size_t *len, long long *val) {
+static int redisSetIteratorNext(void *iter, redisSds *p) {
   sds value;
   int64_t llele;
   int encoding = setTypeNext(iter, &value, &llele);
-  if (encoding != -1) {
-    if (encoding != OBJ_ENCODING_INTSET) {
-      *ptr = value, *len = sdslen(value);
-    } else {
-      *val = llele;
-    }
-    return 0;
+  if (encoding == -1) {
+    return C_ERR;
   }
-  return -1;
+  if (encoding != OBJ_ENCODING_INTSET) {
+    p->ptr = value, p->len = sdslen(value);
+  } else {
+    p->val = llele;
+  }
+  return C_OK;
+}
+
+size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  size_t i = 0;
+  while (i < len && redisSetIteratorNext(iter, &buf[i]) != C_ERR) {
+    i++;
+  }
+  return i;
 }

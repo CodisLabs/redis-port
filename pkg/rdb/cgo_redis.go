@@ -494,17 +494,17 @@ func (o *RedisListObject) StringsUnsafe() []string {
 }
 
 type redisSdsBuffer struct {
-	cached []C.redisSds
+	buffer []C.redisSds
 }
 
 func (p *redisSdsBuffer) PopFirst(load func() []C.redisSds) *RedisSds {
-	if len(p.cached) == 0 {
-		if p.cached = load(); len(p.cached) == 0 {
+	if len(p.buffer) == 0 {
+		if p.buffer = load(); len(p.buffer) == 0 {
 			return nil
 		}
 	}
 	var first *C.redisSds
-	first, p.cached = &p.cached[0], p.cached[1:]
+	first, p.buffer = &p.buffer[0], p.buffer[1:]
 	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), Score: float64(first.score)}
 }
 
@@ -684,54 +684,64 @@ func (o *RedisSetObject) Len() int {
 	return int(C.redisSetObjectLen(o.obj))
 }
 
-func (o *RedisSetObject) Map() map[string]bool {
+func (o *RedisSetObject) ForEach(on func(iter *RedisSetIterator) (bool, string)) map[string]bool {
 	var set = make(map[string]bool)
 	var iter = o.NewIterator()
 	for {
-		switch sds := iter.Next(); {
-		case sds != nil:
-			set[sds.String()] = true
-		default:
+		var cont, key = on(iter)
+		if !cont {
 			iter.Release()
 			return set
 		}
+		set[key] = true
 	}
 }
 
-func (o *RedisSetObject) UnsafeMap() map[string]bool {
-	var set = make(map[string]bool)
-	var iter = o.NewIterator()
-	for {
-		switch sds := iter.Next(); {
-		case sds != nil:
-			set[sds.UnsafeString()] = true
-		default:
-			iter.Release()
-			return set
+func (o *RedisSetObject) Map() map[string]bool {
+	return o.ForEach(func(iter *RedisSetIterator) (bool, string) {
+		var key = iter.Next()
+		if key == nil {
+			return false, ""
 		}
-	}
+		return true, key.String()
+	})
+}
+
+func (o *RedisSetObject) MapUnsafe() map[string]bool {
+	return o.ForEach(func(iter *RedisSetIterator) (bool, string) {
+		var key = iter.Next()
+		if key == nil {
+			return false, ""
+		}
+		return true, key.StringUnsafe()
+	})
 }
 
 func (o *RedisSetObject) NewIterator() *RedisSetIterator {
 	var iter = C.redisSetObjectNewIterator(o.obj)
-	return &RedisSetIterator{iter}
+	return &RedisSetIterator{iter: iter}
 }
 
 type RedisSetIterator struct {
 	iter unsafe.Pointer
+
+	buffer redisSdsBuffer
 }
 
 func (p *RedisSetIterator) Release() {
 	C.redisSetIteratorRelease(p.iter)
 }
 
-func (p *RedisSetIterator) Next() *RedisUnsafeSds {
-	var ptr unsafe.Pointer
-	var len C.size_t
-	var val C.longlong
-	var ret = C.redisSetIteratorNext(p.iter, &ptr, &len, &val)
+func (p *RedisSetIterator) Load() []C.redisSds {
+	var buf = make([]C.redisSds, 256)
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	var ret = C.redisSetIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
 	if ret != 0 {
-		return nil
+		return buf[:ret]
 	}
-	return &RedisUnsafeSds{ptr, int(len), int64(val)}
+	return nil
+}
+
+func (p *RedisSetIterator) Next() *RedisSds {
+	return p.buffer.PopFirst(p.Load)
 }
