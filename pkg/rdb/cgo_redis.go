@@ -311,34 +311,6 @@ func (p *RedisSds) StringUnsafe() string {
 	return unsafeCastToString(p.Ptr, C.size_t(p.Len))
 }
 
-// TODO
-
-type RedisUnsafeSds struct {
-	Ptr   unsafe.Pointer
-	Len   int
-	Value int64
-}
-
-func (p *RedisUnsafeSds) Release() {
-	if p.Ptr != nil {
-		C.redisSdsFree(p.Ptr)
-	}
-}
-
-func (p *RedisUnsafeSds) String() string {
-	if p.Ptr != nil {
-		return string(unsafeCastToSlice(p.Ptr, C.size_t(p.Len)))
-	}
-	return strconv.FormatInt(p.Value, 10)
-}
-
-func (p *RedisUnsafeSds) UnsafeString() string {
-	if p.Ptr != nil {
-		return unsafeCastToString(p.Ptr, C.size_t(p.Len))
-	}
-	return strconv.FormatInt(p.Value, 10)
-}
-
 type RedisObject struct {
 	obj unsafe.Pointer
 }
