@@ -118,13 +118,13 @@ size_t redisStringObjectLen(void *obj) {
   return stringObjectLen(o);
 }
 
-void redisStringObjectLoad(void *obj, redisSds *sds) {
+void redisStringObjectLoad(void *obj, redisSds *p) {
   robj *o = obj;
   serverAssert(o->type == OBJ_STRING);
   if (sdsEncodedObject(o)) {
-    sds->ptr = o->ptr, sds->len = sdslen(o->ptr);
+    p->ptr = o->ptr, p->len = sdslen(o->ptr);
   } else if (o->encoding == OBJ_ENCODING_INT) {
-    sds->val = (long)o->ptr;
+    p->val = (long)o->ptr;
   } else {
     serverPanic("Unknown string encoding");
   }
@@ -249,32 +249,39 @@ void *redisZsetObjectNewIterator(void *obj) {
 
 void redisZsetIteratorRelease(void *iter) { zfree(iter); }
 
-int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
-                          double *score) {
+static int redisZsetIteratorNext(void *iter, redisSds *p) {
   redisZsetIterator *it = iter;
-  if (it->length != 0) {
-    robj *o = it->obj;
-    if (o->encoding == OBJ_ENCODING_ZIPLIST) {
-      unsigned char *vstr = NULL;
-      unsigned int vlen;
-      serverAssert(it->eptr != NULL && it->sptr != NULL);
-      serverAssert(ziplistGet(it->eptr, &vstr, &vlen, val));
-      if (vstr) {
-        *ptr = vstr, *len = vlen;
-      }
-      *score = zzlGetScore(it->sptr);
-      zzlNext(o->ptr, &it->eptr, &it->sptr);
-    } else {
-      zskiplistNode *ln = it->ln;
-      serverAssert(ln != NULL);
-      *ptr = ln->ele, *len = sdslen(ln->ele);
-      *score = ln->score;
-      it->ln = ln->level[0].forward;
-    }
-    it->length--;
-    return 0;
+  if (it->length == 0) {
+    return C_ERR;
   }
-  return -1;
+  robj *o = it->obj;
+  if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+    unsigned char *vstr = NULL;
+    unsigned int vlen;
+    serverAssert(it->eptr != NULL && it->sptr != NULL);
+    serverAssert(ziplistGet(it->eptr, &vstr, &vlen, &(p->val)));
+    if (vstr) {
+      p->ptr = vstr, p->len = vlen;
+    }
+    p->score = zzlGetScore(it->sptr);
+    zzlNext(o->ptr, &it->eptr, &it->sptr);
+  } else {
+    zskiplistNode *ln = it->ln;
+    serverAssert(ln != NULL);
+    p->ptr = ln->ele, p->len = sdslen(ln->ele);
+    p->score = ln->score;
+    it->ln = ln->level[0].forward;
+  }
+  it->length--;
+  return C_OK;
+}
+
+size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  size_t i = 0;
+  while (i < len && redisZsetIteratorNext(iter, &buf[i]) != C_ERR) {
+    i++;
+  }
+  return i;
 }
 
 size_t redisSetObjectLen(void *obj) {

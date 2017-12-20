@@ -21,6 +21,7 @@ typedef struct {
   void *ptr;
   size_t len;
   long long val;
+  double score;
 } redisSds;
 
 /* API for redisObject */
@@ -54,8 +55,7 @@ size_t redisHashIteratorLoad(void *iter, redisSds *buf, size_t len);
 size_t redisZsetObjectLen(void *obj);
 void *redisZsetObjectNewIterator(void *obj);
 void redisZsetIteratorRelease(void *iter);
-int redisZsetIteratorNext(void *iter, void **ptr, size_t *len, long long *val,
-                          double *score);
+size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len);
 
 /* API for redisObject:set */
 size_t redisSetObjectLen(void *obj);
