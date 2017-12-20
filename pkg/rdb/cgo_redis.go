@@ -456,46 +456,52 @@ func (o *RedisListObject) Len() int {
 
 func (o *RedisListObject) NewIterator() *RedisListIterator {
 	var iter = C.redisListObjectNewIterator(o.obj)
-	return &RedisListIterator{iter}
+	return &RedisListIterator{iter, nil}
+}
+
+func (o *RedisListObject) ForEach(on func(iter *RedisListIterator) (bool, string)) []string {
+	var list []string
+	var iter = o.NewIterator()
+	for {
+		var cont, key = on(iter)
+		if !cont {
+			iter.Release()
+			return list
+		}
+		list = append(list, key)
+	}
 }
 
 func (o *RedisListObject) Strings() []string {
-	var list []string
-	var iter = o.NewIterator()
-	for {
-		switch sds := iter.Next(); {
-		case sds != nil:
-			list = append(list, sds.String())
-		default:
-			iter.Release()
-			return list
+	return o.ForEach(func(iter *RedisListIterator) (bool, string) {
+		var sds = iter.Next()
+		if sds == nil {
+			return false, ""
 		}
-	}
+		return true, sds.String()
+	})
 }
 
-func (o *RedisListObject) UnsafeStrings() []string {
-	var list []string
-	var iter = o.NewIterator()
-	for {
-		switch sds := iter.Next(); {
-		case sds != nil:
-			list = append(list, sds.UnsafeString())
-		default:
-			iter.Release()
-			return list
+func (o *RedisListObject) StringsUnsafe() []string {
+	return o.ForEach(func(iter *RedisListIterator) (bool, string) {
+		var sds = iter.Next()
+		if sds == nil {
+			return false, ""
 		}
-	}
+		return true, sds.StringUnsafe()
+	})
 }
 
 type RedisListIterator struct {
 	iter unsafe.Pointer
+	next []C.redisSds
 }
 
 func (p *RedisListIterator) Release() {
 	C.redisListIteratorRelease(p.iter)
 }
 
-func (p *RedisListIterator) Next() *RedisUnsafeSds {
+func (p *RedisListIterator) Next() *RedisSds {
 	var ptr unsafe.Pointer
 	var len C.size_t
 	var val C.longlong
@@ -503,7 +509,7 @@ func (p *RedisListIterator) Next() *RedisUnsafeSds {
 	if ret != 0 {
 		return nil
 	}
-	return &RedisUnsafeSds{ptr, int(len), int64(val)}
+	return &RedisSds{ptr, int(len), int64(val), false}
 }
 
 type RedisHashObject struct {

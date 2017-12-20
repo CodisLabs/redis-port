@@ -420,7 +420,7 @@ func BenchmarkListIterator(b *testing.B) {
 			iter = nil
 			goto try_again
 		} else {
-			sds.UnsafeString()
+			sds.StringUnsafe()
 		}
 	}
 }
