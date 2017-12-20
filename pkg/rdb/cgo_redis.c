@@ -320,3 +320,8 @@ size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len) {
   }
   return i;
 }
+
+size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader loader, void *iter,
+                                     redisSds *buf, size_t len) {
+  return loader(iter, buf, len);
+}

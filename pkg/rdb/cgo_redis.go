@@ -480,6 +480,16 @@ func (p *redisSdsBuffer) PopFirst(load func() []C.redisSds) *RedisSds {
 	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), Score: float64(first.score)}
 }
 
+func redisTypeIteratorLoad(iter unsafe.Pointer, size int, loader C.redisTypeIteratorLoader) []C.redisSds {
+	var buf = make([]C.redisSds, size)
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	var ret = C.redisTypeIteratorLoaderInvoke(loader, iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
+	if ret != 0 {
+		return buf[:ret]
+	}
+	return nil
+}
+
 type RedisListIterator struct {
 	iter unsafe.Pointer
 
@@ -491,13 +501,8 @@ func (p *RedisListIterator) Release() {
 }
 
 func (p *RedisListIterator) Load() []C.redisSds {
-	var buf = make([]C.redisSds, 256)
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisListIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	if ret != 0 {
-		return buf[:ret]
-	}
-	return nil
+	return redisTypeIteratorLoad(p.iter, 256,
+		C.redisTypeIteratorLoader(C.redisListIteratorLoad))
 }
 
 func (p *RedisListIterator) Next() *RedisSds {
@@ -561,13 +566,8 @@ func (p *RedisHashIterator) Release() {
 }
 
 func (p *RedisHashIterator) Load() []C.redisSds {
-	var buf = make([]C.redisSds, 256)
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisHashIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	if ret != 0 {
-		return buf[:ret]
-	}
-	return nil
+	return redisTypeIteratorLoad(p.iter, 256,
+		C.redisTypeIteratorLoader(C.redisHashIteratorLoad))
 }
 
 func (p *RedisHashIterator) Next() (*RedisSds, *RedisSds) {
@@ -635,13 +635,8 @@ func (p *RedisZsetIterator) Release() {
 }
 
 func (p *RedisZsetIterator) Load() []C.redisSds {
-	var buf = make([]C.redisSds, 256)
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisZsetIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	if ret != 0 {
-		return buf[:ret]
-	}
-	return nil
+	return redisTypeIteratorLoad(p.iter, 256,
+		C.redisTypeIteratorLoader(C.redisZsetIteratorLoad))
 }
 
 func (p *RedisZsetIterator) Next() *RedisSds {
@@ -705,13 +700,8 @@ func (p *RedisSetIterator) Release() {
 }
 
 func (p *RedisSetIterator) Load() []C.redisSds {
-	var buf = make([]C.redisSds, 256)
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisSetIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	if ret != 0 {
-		return buf[:ret]
-	}
-	return nil
+	return redisTypeIteratorLoad(p.iter, 256,
+		C.redisTypeIteratorLoader(C.redisSetIteratorLoad))
 }
 
 func (p *RedisSetIterator) Next() *RedisSds {
