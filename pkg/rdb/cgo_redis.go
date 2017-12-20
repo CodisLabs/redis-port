@@ -518,10 +518,13 @@ func (p *RedisListIterator) Release() {
 }
 
 func (p *RedisListIterator) Load() []C.redisSds {
-	var buf = make([]C.redisSds, 256)
+	var buf = make([]C.redisSds, 128)
 	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	var ret = C.redisListIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	return buf[:ret]
+	if ret != 0 {
+		return buf[:ret]
+	}
+	return nil
 }
 
 func (p *RedisListIterator) Next() *RedisSds {
@@ -538,62 +541,68 @@ func (o *RedisHashObject) Len() int {
 
 func (o *RedisHashObject) NewIterator() *RedisHashIterator {
 	var iter = C.redisHashObjectNewIterator(o.obj)
-	return &RedisHashIterator{iter}
+	return &RedisHashIterator{iter: iter}
+}
+
+func (o *RedisHashObject) ForEach(on func(iter *RedisHashIterator) (bool, string, string)) map[string]string {
+	var hash = make(map[string]string)
+	var iter = o.NewIterator()
+	for {
+		var cont, key, value = on(iter)
+		if !cont {
+			iter.Release()
+			return hash
+		}
+		hash[key] = value
+	}
 }
 
 func (o *RedisHashObject) Map() map[string]string {
-	var hash = make(map[string]string)
-	var iter = o.NewIterator()
-	for {
-		switch key, value := iter.Next(); {
-		case key != nil:
-			hash[key.String()] = value.String()
-		default:
-			iter.Release()
-			return hash
+	return o.ForEach(func(iter *RedisHashIterator) (bool, string, string) {
+		var key, value = iter.Next()
+		if key == nil {
+			return false, "", ""
 		}
-	}
+		return true, key.String(), value.String()
+	})
 }
 
-func (o *RedisHashObject) UnsafeMap() map[string]string {
-	var hash = make(map[string]string)
-	var iter = o.NewIterator()
-	for {
-		switch key, value := iter.Next(); {
-		case key != nil:
-			hash[key.UnsafeString()] = value.UnsafeString()
-		default:
-			iter.Release()
-			return hash
+func (o *RedisHashObject) MapUnsafe() map[string]string {
+	return o.ForEach(func(iter *RedisHashIterator) (bool, string, string) {
+		var key, value = iter.Next()
+		if key == nil {
+			return false, "", ""
 		}
-	}
+		return true, key.StringUnsafe(), value.StringUnsafe()
+	})
 }
 
 type RedisHashIterator struct {
 	iter unsafe.Pointer
+
+	buffer redisSdsBuffer
 }
 
 func (p *RedisHashIterator) Release() {
 	C.redisHashIteratorRelease(p.iter)
 }
 
-func (p *RedisHashIterator) Next() (*RedisUnsafeSds, *RedisUnsafeSds) {
-	var k, v struct {
-		ptr unsafe.Pointer
-		len C.size_t
-		val C.longlong
-	}
-	var ret = C.redisHashIteratorNext(p.iter,
-		&k.ptr, &k.len, &k.val,
-		&v.ptr, &v.len, &v.val)
+func (p *RedisHashIterator) Load() []C.redisSds {
+	var buf = make([]C.redisSds, 256)
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	var ret = C.redisHashIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
 	if ret != 0 {
-		return nil, nil
+		return buf[:ret]
 	}
-	return &RedisUnsafeSds{
-			k.ptr, int(k.len), int64(k.val),
-		}, &RedisUnsafeSds{
-			v.ptr, int(v.len), int64(v.val),
-		}
+	return nil
+}
+
+func (p *RedisHashIterator) Next() (*RedisSds, *RedisSds) {
+	var key = p.buffer.PopFirst(p.Load)
+	if key != nil {
+		return key, p.buffer.PopFirst(p.Load)
+	}
+	return nil, nil
 }
 
 type RedisZsetObject struct {

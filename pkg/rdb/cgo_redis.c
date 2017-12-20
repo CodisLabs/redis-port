@@ -180,25 +180,32 @@ void *redisHashObjectNewIterator(void *obj) {
 
 void redisHashIteratorRelease(void *iter) { hashTypeReleaseIterator(iter); }
 
-static void hashTypeCurrentObjectWrapper(void *iter, void **ptr, size_t *len,
-                                         long long *val, int what) {
+static void hashTypeCurrentObjectWrapper(void *iter, redisSds *p, int what) {
   unsigned char *vstr = NULL;
   unsigned int vlen;
-  hashTypeCurrentObject(iter, what, &vstr, &vlen, val);
+  hashTypeCurrentObject(iter, what, &vstr, &vlen, &(p->val));
   if (vstr) {
-    *ptr = vstr, *len = vlen;
+    p->ptr = vstr, p->len = vlen;
   }
 }
 
-int redisHashIteratorNext(void *iter, void **kptr, size_t *klen,
-                          long long *kval, void **vptr, size_t *vlen,
-                          long long *vval) {
-  if (hashTypeNext(iter) != C_ERR) {
-    hashTypeCurrentObjectWrapper(iter, kptr, klen, kval, OBJ_HASH_KEY);
-    hashTypeCurrentObjectWrapper(iter, vptr, vlen, vval, OBJ_HASH_VALUE);
-    return 0;
+static int redisHashIteratorNext(void *iter, redisSds *k, redisSds *v) {
+  if (hashTypeNext(iter) != C_OK) {
+    return C_ERR;
   }
-  return -1;
+  hashTypeCurrentObjectWrapper(iter, k, OBJ_HASH_KEY);
+  hashTypeCurrentObjectWrapper(iter, v, OBJ_HASH_VALUE);
+  return C_OK;
+}
+
+size_t redisHashIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  serverAssert(len % 2 == 0);
+  size_t i = 0;
+  while (i < len &&
+         redisHashIteratorNext(iter, &buf[i], &buf[i + 1]) != C_ERR) {
+    i += 2;
+  }
+  return i;
 }
 
 size_t redisZsetObjectLen(void *obj) {
