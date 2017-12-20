@@ -278,11 +278,11 @@ type RedisSds struct {
 	Len   int
 	Value int64
 
-	IsLeak bool
+	IsOwner bool
 }
 
 func (p *RedisSds) Release() {
-	if p.IsLeak && p.Ptr != nil {
+	if p.IsOwner && p.Ptr != nil {
 		C.redisSdsFree(p.Ptr)
 	}
 }
@@ -372,7 +372,7 @@ func (o *RedisObject) CreateDumpPayload() string {
 func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisSds {
 	var len C.size_t
 	var ptr = C.redisObjectCreateDumpPayload(o.obj, &len)
-	return &RedisSds{ptr, int(len), 0, true}
+	return &RedisSds{Ptr: ptr, Len: int(len), IsOwner: true}
 }
 
 func DecodeFromPayload(buf []byte) *RedisObject {
@@ -435,7 +435,7 @@ func (o *RedisStringObject) Len() int {
 func (o *RedisStringObject) loadRedisSds() *RedisSds {
 	var sds C.redisSds
 	C.redisStringObjectLoad(o.obj, &sds)
-	return &RedisSds{sds.ptr, int(sds.len), int64(sds.val), false}
+	return &RedisSds{Ptr: sds.ptr, Len: int(sds.len), Value: int64(sds.val)}
 }
 
 func (o *RedisStringObject) String() string {
@@ -456,7 +456,7 @@ func (o *RedisListObject) Len() int {
 
 func (o *RedisListObject) NewIterator() *RedisListIterator {
 	var iter = C.redisListObjectNewIterator(o.obj)
-	return &RedisListIterator{iter, nil}
+	return &RedisListIterator{iter: iter}
 }
 
 func (o *RedisListObject) ForEach(on func(iter *RedisListIterator) (bool, string)) []string {
@@ -492,24 +492,40 @@ func (o *RedisListObject) StringsUnsafe() []string {
 	})
 }
 
+type redisSdsBuffer struct {
+	cached []C.redisSds
+}
+
+func (p *redisSdsBuffer) PopFirst(load func() []C.redisSds) *RedisSds {
+	if len(p.cached) == 0 {
+		if p.cached = load(); len(p.cached) == 0 {
+			return nil
+		}
+	}
+	var first *C.redisSds
+	first, p.cached = &p.cached[0], p.cached[1:]
+	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), IsOwner: false}
+}
+
 type RedisListIterator struct {
 	iter unsafe.Pointer
-	next []C.redisSds
+
+	buffer redisSdsBuffer
 }
 
 func (p *RedisListIterator) Release() {
 	C.redisListIteratorRelease(p.iter)
 }
 
+func (p *RedisListIterator) Load() []C.redisSds {
+	var buf = make([]C.redisSds, 256)
+	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	var ret = C.redisListIteratorLoad(p.iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
+	return buf[:ret]
+}
+
 func (p *RedisListIterator) Next() *RedisSds {
-	var ptr unsafe.Pointer
-	var len C.size_t
-	var val C.longlong
-	var ret = C.redisListIteratorNext(p.iter, &ptr, &len, &val)
-	if ret != 0 {
-		return nil
-	}
-	return &RedisSds{ptr, int(len), int64(val), false}
+	return p.buffer.PopFirst(p.Load)
 }
 
 type RedisHashObject struct {

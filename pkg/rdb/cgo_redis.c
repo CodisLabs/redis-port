@@ -144,18 +144,26 @@ void *redisListObjectNewIterator(void *obj) {
 
 void redisListIteratorRelease(void *iter) { listTypeReleaseIterator(iter); }
 
-int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val) {
+static int redisListIteratorNext(void *iter, redisSds *p) {
   listTypeEntry entry;
-  if (listTypeNext(iter, &entry)) {
-    quicklistEntry *qe = &entry.entry;
-    if (qe->value) {
-      *ptr = qe->value, *len = qe->sz;
-    } else {
-      *val = qe->longval;
-    }
-    return 0;
+  if (!listTypeNext(iter, &entry)) {
+    return C_ERR;
   }
-  return -1;
+  quicklistEntry *qe = &entry.entry;
+  if (qe->value) {
+    p->ptr = qe->value, p->len = qe->sz;
+  } else {
+    p->val = qe->longval;
+  }
+  return C_OK;
+}
+
+size_t redisListIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  size_t i = 0;
+  while (i < len && redisListIteratorNext(iter, &buf[i]) != C_ERR) {
+    i++;
+  }
+  return i;
 }
 
 size_t redisHashObjectLen(void *obj) {

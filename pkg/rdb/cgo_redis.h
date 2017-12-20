@@ -42,7 +42,7 @@ void redisStringObjectLoad(void *obj, redisSds *sds);
 size_t redisListObjectLen(void *obj);
 void *redisListObjectNewIterator(void *obj);
 void redisListIteratorRelease(void *iter);
-int redisListIteratorNext(void *iter, void **ptr, size_t *len, long long *val);
+size_t redisListIteratorLoad(void *iter, redisSds *buf, size_t len);
 
 /* API for redisObject:hash */
 size_t redisHashObjectLen(void *obj);
