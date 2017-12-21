@@ -16,8 +16,7 @@ type Loader struct {
 		version int64 // rdb version
 	}
 	cursor struct {
-		db     uint64 // current database
-		offset int64  // current offset of the underlying reader
+		db uint64 // current database
 	}
 	footer struct {
 		checksum uint64 // expected checksum
@@ -35,26 +34,11 @@ func NewLoader(r io.Reader) *Loader {
 }
 
 func (l *Loader) onRead(b []byte) int {
-	n, err := io.ReadFull(l.r, b)
+	_, err := io.ReadFull(l.r, b)
 	if err != nil {
 		log.PanicErrorf(err, "Read bytes failed.")
 	}
-	l.cursor.offset += int64(n)
 	return 1
-}
-
-func (l *Loader) onWrite(b []byte) int {
-	log.Panicf("Doesn't support write operation.")
-	return 0
-}
-
-func (l *Loader) onTell() int64 {
-	return l.cursor.offset
-}
-
-func (l *Loader) onFlush() int {
-	log.Panicf("Doesn't support flush operation.")
-	return 0
 }
 
 func (l *Loader) Header() {

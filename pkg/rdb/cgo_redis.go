@@ -75,24 +75,6 @@ func cgoRedisRioRead(rdb *C.rio, buf unsafe.Pointer, len C.size_t) C.size_t {
 	return C.size_t(loader.onRead(buffer))
 }
 
-//export cgoRedisRioWrite
-func cgoRedisRioWrite(rdb *C.rio, buf unsafe.Pointer, len C.size_t) C.size_t {
-	loader, buffer := unsafeCastToLoader(rdb), unsafeCastToSlice(buf, len)
-	return C.size_t(loader.onWrite(buffer))
-}
-
-//export cgoRedisRioTell
-func cgoRedisRioTell(rdb *C.rio) C.off_t {
-	loader := unsafeCastToLoader(rdb)
-	return C.off_t(loader.onTell())
-}
-
-//export cgoRedisRioFlush
-func cgoRedisRioFlush(rdb *C.rio) C.int {
-	loader := unsafeCastToLoader(rdb)
-	return C.int(loader.onFlush())
-}
-
 type redisRio struct {
 	rio C.redisRio
 }

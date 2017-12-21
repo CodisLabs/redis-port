@@ -19,16 +19,17 @@ static size_t rioRedisRioRead(rio *rdb, void *buf, size_t len) {
   return cgoRedisRioRead(rdb, buf, len);
 }
 
-extern size_t cgoRedisRioWrite(rio *rdb, const void *buf, size_t len);
 static size_t rioRedisRioWrite(rio *rdb, const void *buf, size_t len) {
-  return cgoRedisRioWrite(rdb, buf, len);
+  serverPanic("redisRio doesn't support write.");
 }
 
-extern off_t cgoRedisRioTell(rio *rdb);
-static off_t rioRedisRioTell(rio *rdb) { return cgoRedisRioTell(rdb); }
+static off_t rioRedisRioTell(rio *rdb) {
+  serverPanic("redisRio doesn't support tell.");
+}
 
-extern int cgoRedisRioFlush(rio *rdb);
-static int rioRedisRioFlush(rio *rdb) { return cgoRedisRioFlush(rdb); }
+static int rioRedisRioFlush(rio *rdb) {
+  serverPanic("redisRio doesn't support flush.");
+}
 
 static const rio redisRioIO = {
     rioRedisRioRead,
