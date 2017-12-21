@@ -48,13 +48,6 @@ func init() {
 	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
 }
 
-func unsafeCastToLoader(rdb *C.rio) *Loader {
-	var l *Loader
-	var ptr = uintptr(unsafe.Pointer(rdb)) -
-		(unsafe.Offsetof(l.rio) + unsafe.Offsetof(l.rio.rio) + unsafe.Offsetof(l.rio.rio.rdb))
-	return (*Loader)(unsafe.Pointer(ptr))
-}
-
 func unsafeCastToSlice(buf unsafe.Pointer, len C.size_t) []byte {
 	var hdr = &reflect.SliceHeader{
 		Data: uintptr(buf), Len: int(len), Cap: int(len),
@@ -69,9 +62,16 @@ func unsafeCastToString(buf unsafe.Pointer, len C.size_t) string {
 	return *(*string)(unsafe.Pointer(hdr))
 }
 
+func unsafeCastToLoader(rio *C.redisRio) *Loader {
+	var l *Loader
+	var ptr = uintptr(unsafe.Pointer(rio)) -
+		(unsafe.Offsetof(l.rio) + unsafe.Offsetof(l.rio.rio))
+	return (*Loader)(unsafe.Pointer(ptr))
+}
+
 //export onRedisRioRead
 func onRedisRioRead(rio *C.redisRio, buf unsafe.Pointer, len C.size_t) C.size_t {
-	loader, buffer := unsafeCastToLoader(&(rio.rdb)), unsafeCastToSlice(buf, len)
+	loader, buffer := unsafeCastToLoader(rio), unsafeCastToSlice(buf, len)
 	n, err := loader.r.Read(buffer)
 	if err != nil {
 		log.PanicErrorf(err, "Read bytes failed.")
@@ -89,16 +89,20 @@ func (r *redisRio) init() {
 
 func (r *redisRio) Read(b []byte) error {
 	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	var ret = C.redisRioRead(&r.rio.rdb, unsafe.Pointer(hdr.Data), C.size_t(hdr.Cap))
+	var ret = C.redisRioRead(&r.rio, unsafe.Pointer(hdr.Data), C.size_t(hdr.Cap))
 	if ret != 0 {
 		return errors.Trace(io.ErrUnexpectedEOF)
 	}
 	return nil
 }
 
+func (r *redisRio) Checksum() uint64 {
+	return uint64(C.redisRioChecksum(&r.rio))
+}
+
 func (r *redisRio) LoadLen() uint64 {
 	var len C.uint64_t
-	var ret = C.redisRioLoadLen(&r.rio.rdb, &len)
+	var ret = C.redisRioLoadLen(&r.rio, &len)
 	if ret != 0 {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadLen() failed")
 	}
@@ -107,7 +111,7 @@ func (r *redisRio) LoadLen() uint64 {
 
 func (r *redisRio) LoadType() int {
 	var typ C.int
-	var ret = C.redisRioLoadType(&r.rio.rdb, &typ)
+	var ret = C.redisRioLoadType(&r.rio, &typ)
 	if ret != 0 {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadType() failed.")
 	}
@@ -116,7 +120,7 @@ func (r *redisRio) LoadType() int {
 
 func (r *redisRio) LoadTime() time.Duration {
 	var val C.time_t
-	var ret = C.redisRioLoadTime(&r.rio.rdb, &val)
+	var ret = C.redisRioLoadTime(&r.rio, &val)
 	if ret != 0 {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadTime() failed.")
 	}
@@ -125,7 +129,7 @@ func (r *redisRio) LoadTime() time.Duration {
 
 func (r *redisRio) LoadTimeMillisecond() time.Duration {
 	var val C.longlong
-	var ret = C.redisRioLoadTimeMillisecond(&r.rio.rdb, &val)
+	var ret = C.redisRioLoadTimeMillisecond(&r.rio, &val)
 	if ret != 0 {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadTimeMillisecond() failed.")
 	}
@@ -133,7 +137,7 @@ func (r *redisRio) LoadTimeMillisecond() time.Duration {
 }
 
 func (r *redisRio) LoadObject(typ int) *RedisObject {
-	var obj = C.redisRioLoadObject(&r.rio.rdb, C.int(typ))
+	var obj = C.redisRioLoadObject(&r.rio, C.int(typ))
 	if obj == nil {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadObject() failed.")
 	}
@@ -141,15 +145,11 @@ func (r *redisRio) LoadObject(typ int) *RedisObject {
 }
 
 func (r *redisRio) LoadStringObject() *RedisStringObject {
-	var obj = C.redisRioLoadStringObject(&r.rio.rdb)
+	var obj = C.redisRioLoadStringObject(&r.rio)
 	if obj == nil {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadStringObject() failed.")
 	}
 	return &RedisStringObject{&RedisObject{obj}}
-}
-
-func (r *redisRio) Checksum() uint64 {
-	return uint64(C.redisRioChecksum(&r.rio))
 }
 
 const (

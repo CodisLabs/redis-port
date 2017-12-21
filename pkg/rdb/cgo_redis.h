@@ -14,14 +14,14 @@ typedef struct {
 
 void redisRioInit(redisRio *p);
 
-int redisRioRead(rio *rdb, void *buf, size_t len);
-int redisRioLoadLen(rio *rdb, uint64_t *len);
-int redisRioLoadType(rio *rdb, int *typ);
-int redisRioLoadTime(rio *rdb, time_t *val);
-int redisRioLoadTimeMillisecond(rio *rdb, long long *val);
+int redisRioRead(redisRio *p, void *buf, size_t len);
+int redisRioLoadLen(redisRio *p, uint64_t *len);
+int redisRioLoadType(redisRio *p, int *typ);
+int redisRioLoadTime(redisRio *p, time_t *val);
+int redisRioLoadTimeMillisecond(redisRio *p, long long *val);
 
-void *redisRioLoadObject(rio *rdb, int typ);
-void *redisRioLoadStringObject(rio *rdb);
+void *redisRioLoadObject(redisRio *p, int typ);
+void *redisRioLoadStringObject(redisRio *p);
 
 inline uint64_t redisRioChecksum(redisRio *p) { return p->rdb.cksum; }
 

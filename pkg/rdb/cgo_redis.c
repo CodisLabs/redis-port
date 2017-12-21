@@ -69,30 +69,35 @@ void redisRioInit(redisRio *p) {
   memset(p->buf, 0, sizeof(p->buf));
 }
 
-int redisRioRead(rio *rdb, void *buf, size_t len) {
-  return rioRead(rdb, buf, len) != 0 ? 0 : -1;
+int redisRioRead(redisRio *p, void *buf, size_t len) {
+  return rioRead(&(p->rdb), buf, len) != 0 ? 0 : -1;
 }
 
-int redisRioLoadLen(rio *rdb, uint64_t *len) {
-  return (*len = rdbLoadLen(rdb, NULL)) != RDB_LENERR ? 0 : -1;
+int redisRioLoadLen(redisRio *p, uint64_t *len) {
+  return (*len = rdbLoadLen(&(p->rdb), NULL)) != RDB_LENERR ? 0 : -1;
 }
 
-int redisRioLoadType(rio *rdb, int *typ) {
-  return (*typ = rdbLoadType(rdb)) >= 0 ? 0 : -1;
+int redisRioLoadType(redisRio *p, int *typ) {
+  return (*typ = rdbLoadType(&(p->rdb))) >= 0 ? 0 : -1;
 }
 
-int redisRioLoadTime(rio *rdb, time_t *val) {
-  return (*val = rdbLoadTime(rdb)) >= 0 ? 0 : -1;
+int redisRioLoadTime(redisRio *p, time_t *val) {
+  return (*val = rdbLoadTime(&(p->rdb))) >= 0 ? 0 : -1;
 }
 
 extern long long rdbLoadMillisecondTime(rio *rdb);
 
-int redisRioLoadTimeMillisecond(rio *rdb, long long *val) {
-  return (*val = rdbLoadMillisecondTime(rdb)) >= 0 ? 0 : -1;
+int redisRioLoadTimeMillisecond(redisRio *p, long long *val) {
+  return (*val = rdbLoadMillisecondTime(&(p->rdb))) >= 0 ? 0 : -1;
 }
 
-void *redisRioLoadObject(rio *rdb, int typ) { return rdbLoadObject(typ, rdb); }
-void *redisRioLoadStringObject(rio *rdb) { return rdbLoadStringObject(rdb); }
+void *redisRioLoadObject(redisRio *p, int typ) {
+  return rdbLoadObject(typ, &(p->rdb));
+}
+
+void *redisRioLoadStringObject(redisRio *p) {
+  return rdbLoadStringObject(&(p->rdb));
+}
 
 void redisSdsFree(void *ptr) { sdsfree(ptr); }
 
