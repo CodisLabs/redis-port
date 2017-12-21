@@ -30,20 +30,18 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
-const redisServerConfig = `
-hash-max-ziplist-entries 512
-hash-max-ziplist-value 64
-list-compress-depth 0
-list-max-ziplist-size -2
-set-max-intset-entries 512
-zset-max-ziplist-entries 128
-zset-max-ziplist-value 64
-rdbchecksum yes
-rdbcompression yes
-`
-
 func init() {
-	var buf = strings.TrimSpace(redisServerConfig)
+	var buf = strings.TrimSpace(`
+        hash-max-ziplist-entries       0
+        hash-max-ziplist-value         0
+        list-compress-depth            0
+        list-max-ziplist-size          0
+        set-max-intset-entries         0
+        zset-max-ziplist-entries       0
+        zset-max-ziplist-value         0
+        rdbchecksum                    yes
+        rdbcompression                 no
+	`)
 	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&buf))
 	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
 }
