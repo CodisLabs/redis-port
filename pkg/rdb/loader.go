@@ -79,7 +79,17 @@ type DBEntry struct {
 	Value  *RedisObject
 }
 
-func (e *DBEntry) Release() {
+func (e *DBEntry) IncrRefCount() *DBEntry {
+	if obj := e.Key; obj != nil {
+		obj.IncrRefCount()
+	}
+	if obj := e.Value; obj != nil {
+		obj.IncrRefCount()
+	}
+	return e
+}
+
+func (e *DBEntry) DecrRefCount() {
 	if obj := e.Key; obj != nil {
 		obj.DecrRefCount()
 	}
@@ -130,13 +140,16 @@ func (l *Loader) Next() *DBEntry {
 	}
 }
 
-func (l *Loader) Scan(onEntry func(e *DBEntry) bool) bool {
-	for {
-		switch e := l.Next(); {
-		case e == nil:
-			return false
-		case !onEntry(e):
-			return true
+func (l *Loader) ForEach(on func(e *DBEntry) bool) int {
+	var step int
+	for stop := false; !stop; step++ {
+		var e = l.Next()
+		if e != nil {
+			stop = !on(e)
+			e.DecrRefCount()
+		} else {
+			stop = true
 		}
 	}
+	return step
 }

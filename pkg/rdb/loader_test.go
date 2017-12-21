@@ -78,14 +78,14 @@ func loadFromFile(name string) DatabaseSet {
 	databases := make(map[uint64]Database)
 	loader := newLoader(name)
 	loader.Header()
-	loader.Scan(func(e *rdb.DBEntry) bool {
+	loader.ForEach(func(e *rdb.DBEntry) bool {
 		db, ok := databases[e.DB]
 		if !ok {
 			db = make(map[string]*rdb.DBEntry)
 			databases[e.DB] = db
 		}
 		assert.Must(db[e.Key.String()] == nil)
-		db[e.Key.String()] = e
+		db[e.Key.String()] = e.IncrRefCount()
 		return true
 	})
 	loader.Footer()
@@ -95,7 +95,7 @@ func loadFromFile(name string) DatabaseSet {
 func release(databases DatabaseSet) {
 	for _, db := range databases {
 		for _, e := range db {
-			e.Release()
+			e.DecrRefCount()
 		}
 	}
 }
