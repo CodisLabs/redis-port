@@ -564,8 +564,7 @@ func (p *RedisHashIterator) Release() {
 }
 
 func (p *RedisHashIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256,
-		C.redisTypeIteratorLoader(C.redisHashIteratorLoad))
+	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisHashIteratorLoad))
 }
 
 func (p *RedisHashIterator) Next() (*RedisSds, *RedisSds) {
@@ -633,8 +632,7 @@ func (p *RedisZsetIterator) Release() {
 }
 
 func (p *RedisZsetIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256,
-		C.redisTypeIteratorLoader(C.redisZsetIteratorLoad))
+	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisZsetIteratorLoad))
 }
 
 func (p *RedisZsetIterator) Next() *RedisSds {
@@ -698,8 +696,7 @@ func (p *RedisSetIterator) Release() {
 }
 
 func (p *RedisSetIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256,
-		C.redisTypeIteratorLoader(C.redisSetIteratorLoad))
+	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisSetIteratorLoad))
 }
 
 func (p *RedisSetIterator) Next() *RedisSds {
