@@ -384,7 +384,7 @@ func TestKeysWithExpiry(t *testing.T) {
 	databases.ValidateSize(map[uint64]int{0: 1})
 	var entry = databases[0]["expires_ms_precision"]
 	assert.Must(entry != nil)
-	assert.Must(entry.Expire != rdb.NoExpireTime)
+	assert.Must(entry.Expire != rdb.NoExpire)
 	var expire = time.Unix(int64(entry.Expire/time.Second), int64(entry.Expire%time.Second))
 	var utc, _ = time.LoadLocation("UTC")
 	assert.Must(expire.In(utc).Format("2006-01-02 15:04:05.000000") == "2022-12-25 10:11:12.573000")

@@ -70,7 +70,7 @@ func (l *Loader) Footer() {
 	}
 }
 
-const NoExpireTime = time.Duration(-1)
+const NoExpire = time.Duration(-1)
 
 type DBEntry struct {
 	DB     uint64
@@ -100,7 +100,7 @@ func (e *DBEntry) DecrRefCount() {
 
 func (l *Loader) Next() *DBEntry {
 	for {
-		expire := NoExpireTime
+		expire := NoExpire
 		opcode := l.rio.LoadType()
 		switch opcode {
 		case RDB_OPCODE_EXPIRETIME:
