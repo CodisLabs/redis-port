@@ -98,7 +98,7 @@ type redisRio struct {
 }
 
 func (r *redisRio) init() {
-	C.redisRioInit(&r.rio.rdb)
+	C.redisRioInit(&r.rio)
 }
 
 func (r *redisRio) Read(b []byte) error {

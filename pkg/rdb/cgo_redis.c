@@ -38,11 +38,15 @@ static const rio redisRioIO = {
     rioGenericUpdateChecksum,
     0,           /* current checksum */
     0,           /* bytes read or written */
-    1024 * 1024, /* read/write chunk size */
+    0,           /* read/write chunk size */
     {{NULL, 0}}, /* union for io-specific vars */
 };
 
-void redisRioInit(rio *rdb) { *rdb = redisRioIO; }
+void redisRioInit(redisRio *p) {
+  p->rdb = redisRioIO;
+  p->pos = p->end = 0;
+  memset(p->buf, 0, sizeof(p->buf));
+}
 
 int redisRioRead(rio *rdb, void *buf, size_t len) {
   return rioRead(rdb, buf, len) != 0 ? 0 : -1;

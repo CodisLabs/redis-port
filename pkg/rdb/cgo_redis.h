@@ -12,7 +12,7 @@ typedef struct {
   char buf[REDIS_RIO_BUFSIZE];
 } redisRio;
 
-void redisRioInit(rio *rdb);
+void redisRioInit(redisRio *p);
 
 int redisRioRead(rio *rdb, void *buf, size_t len);
 int redisRioLoadLen(rio *rdb, uint64_t *len);
