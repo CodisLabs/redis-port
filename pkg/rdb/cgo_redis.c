@@ -150,7 +150,7 @@ void redisStringObjectLoad(void *obj, redisSds *p) {
   } else if (o->encoding == OBJ_ENCODING_INT) {
     p->val = (long)o->ptr;
   } else {
-    serverPanic("Unknown string encoding");
+    serverPanic("Unknown string encoding.");
   }
 }
 
@@ -267,7 +267,7 @@ void *redisZsetObjectNewIterator(void *obj) {
     serverAssert(it->ln != NULL);
     return it;
   } else {
-    serverPanic("Unknown sorted set encoding");
+    serverPanic("Unknown sorted set encoding.");
   }
 }
 
