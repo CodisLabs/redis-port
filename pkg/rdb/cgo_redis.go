@@ -93,12 +93,6 @@ func cgoRedisRioFlush(rdb *C.rio) C.int {
 	return C.int(loader.onFlush())
 }
 
-//export cgoRedisRioUpdateChecksum
-func cgoRedisRioUpdateChecksum(rdb *C.rio, checksum C.uint64_t) {
-	loader := unsafeCastToLoader(rdb)
-	loader.onUpdateChecksum(uint64(checksum))
-}
-
 type redisRio struct {
 	rio C.redisRio
 }
@@ -166,6 +160,10 @@ func (r *redisRio) LoadStringObject() *RedisStringObject {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadStringObject() failed.")
 	}
 	return &RedisStringObject{&RedisObject{obj}}
+}
+
+func (r *redisRio) Checksum() uint64 {
+	return uint64(C.redisRioChecksum(&r.rio))
 }
 
 const (

@@ -30,18 +30,12 @@ static off_t rioRedisRioTell(rio *rdb) { return cgoRedisRioTell(rdb); }
 extern int cgoRedisRioFlush(rio *rdb);
 static int rioRedisRioFlush(rio *rdb) { return cgoRedisRioFlush(rdb); }
 
-extern void cgoRedisRioUpdateChecksum(rio *rdb, uint64_t checksum);
-static void rioRedisRioUpdateChecksum(rio *rdb, const void *buf, size_t len) {
-  rioGenericUpdateChecksum(rdb, buf, len);
-  cgoRedisRioUpdateChecksum(rdb, rdb->cksum);
-}
-
 static const rio redisRioIO = {
     rioRedisRioRead,
     rioRedisRioWrite,
     rioRedisRioTell,
     rioRedisRioFlush,
-    rioRedisRioUpdateChecksum,
+    rioGenericUpdateChecksum,
     0,           /* current checksum */
     0,           /* bytes read or written */
     1024 * 1024, /* read/write chunk size */

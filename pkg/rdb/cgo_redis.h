@@ -23,6 +23,8 @@ int redisRioLoadTimeMillisecond(rio *rdb, long long *val);
 void *redisRioLoadObject(rio *rdb, int typ);
 void *redisRioLoadStringObject(rio *rdb);
 
+inline uint64_t redisRioChecksum(redisRio *p) { return p->rdb.cksum; }
+
 /* API for Sds */
 void redisSdsFree(void *ptr);
 

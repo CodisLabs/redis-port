@@ -16,9 +16,8 @@ type Loader struct {
 		version int64 // rdb version
 	}
 	cursor struct {
-		db       uint64 // current database
-		checksum uint64 // current checksum
-		offset   int64  // current offset of the underlying reader
+		db     uint64 // current database
+		offset int64  // current offset of the underlying reader
 	}
 	footer struct {
 		checksum uint64 // expected checksum
@@ -58,10 +57,6 @@ func (l *Loader) onFlush() int {
 	return 0
 }
 
-func (l *Loader) onUpdateChecksum(checksum uint64) {
-	l.cursor.checksum = checksum
-}
-
 func (l *Loader) Header() {
 	header := make([]byte, 9)
 	if err := l.rio.Read(header); err != nil {
@@ -83,8 +78,8 @@ func (l *Loader) Header() {
 }
 
 func (l *Loader) Footer() {
-	var expected = l.cursor.checksum
 	if l.header.version >= 5 {
+		var expected = l.rio.Checksum()
 		footer := make([]byte, 8)
 		if err := l.rio.Read(footer); err != nil {
 			log.PanicErrorf(err, "Read RDB footer failed.")
