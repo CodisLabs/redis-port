@@ -2,7 +2,7 @@
 
 void initRedisServer(const void *buf, size_t len);
 
-/* API for Redis Rio/Rdb */
+/* API of Redis Rio/Rdb */
 
 #define REDIS_RIO_BUFSIZE (1024 * 16)
 
@@ -25,7 +25,7 @@ void *redisRioLoadStringObject(redisRio *p);
 
 inline uint64_t redisRioChecksum(redisRio *p) { return p->rdb.cksum; }
 
-/* API for Sds */
+/* API of Sds */
 void redisSdsFree(void *ptr);
 
 typedef struct {
@@ -35,7 +35,7 @@ typedef struct {
   double score;
 } redisSds;
 
-/* API for redisObject */
+/* API of redis Object */
 int redisObjectType(void *obj);
 int redisObjectEncoding(void *obj);
 int redisObjectRefCount(void *obj);
@@ -46,35 +46,35 @@ void redisObjectDecrRefCount(void *obj);
 void *redisObjectCreateDumpPayload(void *obj, size_t *len);
 void *redisObjectDecodeFromPayload(void *buf, size_t len);
 
-/* API for redisObject:string */
+/* API of redis String */
 size_t redisStringObjectLen(void *obj);
 void redisStringObjectLoad(void *obj, redisSds *sds);
 
-/* API for redisObject:list */
+/* API of redis List */
 size_t redisListObjectLen(void *obj);
 void *redisListObjectNewIterator(void *obj);
 void redisListIteratorRelease(void *iter);
 size_t redisListIteratorLoad(void *iter, redisSds *buf, size_t len);
 
-/* API for redisObject:hash */
+/* API of redis Hash */
 size_t redisHashObjectLen(void *obj);
 void *redisHashObjectNewIterator(void *obj);
 void redisHashIteratorRelease(void *iter);
 size_t redisHashIteratorLoad(void *iter, redisSds *buf, size_t len);
 
-/* API for redisObject:zset */
+/* API of redis Zset */
 size_t redisZsetObjectLen(void *obj);
 void *redisZsetObjectNewIterator(void *obj);
 void redisZsetIteratorRelease(void *iter);
 size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len);
 
-/* API for redisObject:set */
+/* API of redis Set */
 size_t redisSetObjectLen(void *obj);
 void *redisSetObjectNewIterator(void *obj);
 void redisSetIteratorRelease(void *iter);
 size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len);
 
-/* API for iterator loader */
+/* API of iterator loader */
 typedef size_t (*redisTypeIteratorLoader)(void *iter, redisSds *buf,
                                           size_t len);
 size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
