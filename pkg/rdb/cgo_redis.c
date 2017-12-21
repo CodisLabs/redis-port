@@ -19,7 +19,7 @@ void initRedisServer(const void *buf, size_t len) {
 #define container_of(ptr, type, member) \
   (type *)((char *)(ptr)-offsetof(type, member));
 
-extern size_t goRedisRioRead(redisRio *p, void *buf, size_t len);
+extern size_t onRedisRioRead(redisRio *p, void *buf, size_t len);
 static size_t rioRedisRioRead(rio *rdb, void *buf, size_t len) {
   redisRio *p = container_of(rdb, redisRio, rdb);
   while (len) {
