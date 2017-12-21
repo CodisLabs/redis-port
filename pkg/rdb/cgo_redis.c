@@ -14,9 +14,29 @@ void initRedisServer(const void *buf, size_t len) {
   }
 }
 
-extern size_t cgoRedisRioRead(rio *rdb, void *buf, size_t len);
+#include <stddef.h>
+
+#define container_of(ptr, type, member) \
+  (type *)((char *)(ptr)-offsetof(type, member));
+
+extern size_t goRedisRioRead(redisRio *p, void *buf, size_t len);
 static size_t rioRedisRioRead(rio *rdb, void *buf, size_t len) {
-  return cgoRedisRioRead(rdb, buf, len);
+  redisRio *p = container_of(rdb, redisRio, rdb);
+  while (len) {
+    size_t remains = p->end - p->pos;
+    if (remains != 0) {
+      size_t nbytes = remains < len ? remains : len;
+      memcpy(buf, p->buf + p->pos, nbytes);
+      len -= nbytes, buf = (char *)buf + nbytes, p->pos += nbytes;
+    } else if (len >= sizeof(p->buf)) {
+      size_t nbytes = onRedisRioRead(p, buf, len);
+      len -= nbytes, buf = (char *)buf + nbytes;
+    } else {
+      p->pos = 0;
+      p->end = onRedisRioRead(p, p->buf, sizeof(p->buf));
+    }
+  }
+  return 1;
 }
 
 static size_t rioRedisRioWrite(rio *rdb, const void *buf, size_t len) {

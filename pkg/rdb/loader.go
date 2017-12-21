@@ -33,14 +33,6 @@ func NewLoader(r io.Reader) *Loader {
 	return l
 }
 
-func (l *Loader) onRead(b []byte) int {
-	_, err := io.ReadFull(l.r, b)
-	if err != nil {
-		log.PanicErrorf(err, "Read bytes failed.")
-	}
-	return 1
-}
-
 func (l *Loader) Header() {
 	header := make([]byte, 9)
 	if err := l.rio.Read(header); err != nil {

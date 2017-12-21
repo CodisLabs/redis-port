@@ -69,10 +69,14 @@ func unsafeCastToString(buf unsafe.Pointer, len C.size_t) string {
 	return *(*string)(unsafe.Pointer(hdr))
 }
 
-//export cgoRedisRioRead
-func cgoRedisRioRead(rdb *C.rio, buf unsafe.Pointer, len C.size_t) C.size_t {
-	loader, buffer := unsafeCastToLoader(rdb), unsafeCastToSlice(buf, len)
-	return C.size_t(loader.onRead(buffer))
+//export onRedisRioRead
+func onRedisRioRead(rio *C.redisRio, buf unsafe.Pointer, len C.size_t) C.size_t {
+	loader, buffer := unsafeCastToLoader(&(rio.rdb)), unsafeCastToSlice(buf, len)
+	n, err := loader.r.Read(buffer)
+	if err != nil {
+		log.PanicErrorf(err, "Read bytes failed.")
+	}
+	return C.size_t(n)
 }
 
 type redisRio struct {
