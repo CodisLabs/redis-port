@@ -12,8 +12,6 @@ import (
 type Loader struct {
 	r io.Reader
 
-	rio redisRio
-
 	header struct {
 		version int64 // rdb version
 	}
@@ -25,6 +23,7 @@ type Loader struct {
 	footer struct {
 		checksum uint64 // expected checksum
 	}
+	rio redisRio
 }
 
 func NewLoader(r io.Reader) *Loader {

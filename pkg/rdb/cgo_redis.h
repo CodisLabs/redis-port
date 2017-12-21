@@ -3,6 +3,15 @@
 void initRedisServer(const void *buf, size_t len);
 
 /* API for Redis Rio/Rdb */
+
+#define REDIS_RIO_BUFSIZE (1024 * 16)
+
+typedef struct {
+  rio rdb;
+  size_t pos, end;
+  char buf[REDIS_RIO_BUFSIZE];
+} redisRio;
+
 void redisRioInit(rio *rdb);
 
 int redisRioRead(rio *rdb, void *buf, size_t len);
