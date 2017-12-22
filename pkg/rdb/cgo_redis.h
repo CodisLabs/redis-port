@@ -79,3 +79,8 @@ typedef size_t (*redisTypeIteratorLoader)(void *iter, redisSds *buf,
                                           size_t len);
 size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
                                      void *iter, redisSds *buf, size_t len);
+
+/* API of redis zmalloc */
+size_t zmalloc_used_memory(void);
+size_t zmalloc_memory_size(void);
+size_t zmalloc_get_rss(void);

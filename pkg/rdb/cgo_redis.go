@@ -26,6 +26,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/CodisLabs/codis/pkg/utils/bytesize"
 	"github.com/CodisLabs/codis/pkg/utils/errors"
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
@@ -44,6 +45,20 @@ func init() {
 	`)
 	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&buf))
 	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
+}
+
+type ZmallocMemStats struct {
+	MemoryUsed bytesize.Int64
+	Rss        bytesize.Int64
+	MemorySize bytesize.Int64
+}
+
+func ReadZmallocMemStats() *ZmallocMemStats {
+	return &ZmallocMemStats{
+		MemoryUsed: bytesize.Int64(C.zmalloc_used_memory()),
+		Rss:        bytesize.Int64(C.zmalloc_get_rss()),
+		MemorySize: bytesize.Int64(C.zmalloc_get_memory_size()),
+	}
 }
 
 func unsafeCastToSlice(buf unsafe.Pointer, len C.size_t) []byte {
