@@ -358,9 +358,11 @@ func TestNonASCIIValues(t *testing.T) {
 	defer release(databases)
 	databases.ValidateSize(map[uint64]int{0: 6})
 	databases[0].ValidateStringObject("int_value", "123")
+	databases[0].ValidateStringObject("ascii", "\x00! ~0\n\t\rAb")
+	databases[0].ValidateStringObject("bin", "\x00$ ~0\u007f\xff\n\xaa\t\x80\rAb")
+	databases[0].ValidateStringObject("printable", "!+ Ab^~")
 	databases[0].ValidateStringObject("378", "int_key_name")
-	databases[0].ValidateStringObject("bin", "\x00\x24\x20\x7e\x30\x7f\xff\x0a\xaa\x09\x80\x0d\x41\x62")
-	databases[0].ValidateStringObject("utf8", "בדיקה𐀏123עברית")
+	databases[0].ValidateStringObject("utf8", "\u05d1\u05d3\u05d9\u05e7\u05d4\U0001000f123\u05e2\u05d1\u05e8\u05d9\u05ea")
 }
 
 func TestRdbVersion8With64bLengthAndScores(t *testing.T) {
