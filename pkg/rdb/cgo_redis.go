@@ -329,6 +329,15 @@ func (o *RedisObject) Encoding() RedisEncoding {
 	return RedisEncoding(C.redisObjectEncoding(o.obj))
 }
 
+func (o *RedisObject) IsEncodedObject() bool {
+	switch o.Encoding() {
+	case OBJ_ENCODING_INT, OBJ_ENCODING_INTSET, OBJ_ENCODING_ZIPLIST:
+		return true
+	default:
+		return false
+	}
+}
+
 func (o *RedisObject) RefCount() int {
 	return o.refs.AsInt()
 }
