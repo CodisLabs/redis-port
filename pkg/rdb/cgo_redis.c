@@ -1,8 +1,45 @@
 #include "cgo_redis.h"
 
+typedef struct {
+  pthread_t thread;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  list *objs;
+} lazyfreeWorker;
+
+static void *lazyfreeWorkerMain(void *args) {
+  lazyfreeWorker *p = args;
+  while (1) {
+    pthread_mutex_lock(&p->mutex);
+    while (listLength(p->objs) == 0) {
+      pthread_cond_wait(&p->cond, &p->mutex);
+    }
+    listNode *head = listFirst(p->objs);
+    robj *o = listNodeValue(head);
+    listDelNode(p->objs, head);
+    pthread_mutex_unlock(&p->mutex);
+    serverAssert(o->refcount == 1);
+    decrRefCount(o);
+  }
+  return NULL;
+}
+
+static lazyfreeWorker *createLazyfreeWorker(void) {
+  lazyfreeWorker *p = zmalloc(sizeof(*p));
+  pthread_mutex_init(&p->mutex, NULL);
+  pthread_cond_init(&p->cond, NULL);
+  p->objs = listCreate();
+  if (pthread_create(&p->thread, NULL, lazyfreeWorkerMain, p) != 0) {
+    serverPanic("Can't create Lazyfree Worker.");
+  }
+  return p;
+}
+
 extern void initServerConfig(void);
 extern void loadServerConfigFromString(char *config);
 extern void createSharedObjects(void);
+
+static lazyfreeWorker *lazyfree_worker = NULL;
 
 void initRedisServer(const void *buf, size_t len) {
   initServerConfig();
@@ -12,6 +49,7 @@ void initRedisServer(const void *buf, size_t len) {
     loadServerConfigFromString(config);
     sdsfree(config);
   }
+  lazyfree_worker = createLazyfreeWorker();
 }
 
 #include <stddef.h>
