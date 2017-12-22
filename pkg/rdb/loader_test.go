@@ -16,10 +16,10 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/log"
 )
 
-func newLoader(name string) *rdb.Loader {
-	b, err := ioutil.ReadFile(filepath.Join("testing", name))
+func newLoaderFromFile(path string) *rdb.Loader {
+	b, err := ioutil.ReadFile(filepath.Join("testing", path))
 	if err != nil {
-		log.PanicErrorf(err, "Read file '%s' failed", name)
+		log.PanicErrorf(err, "Read file '%s' failed.", path)
 	}
 	return rdb.NewLoader(bytes.NewReader(b))
 }
@@ -74,9 +74,8 @@ func (databases DatabaseSet) ValidateSize(expected map[uint64]int) {
 	}
 }
 
-func loadFromFile(name string) DatabaseSet {
+func loadFromLoader(loader *rdb.Loader) DatabaseSet {
 	databases := make(map[uint64]Database)
-	loader := newLoader(name)
 	loader.Header()
 	loader.ForEach(func(e *rdb.DBEntry) bool {
 		db, ok := databases[e.DB]
@@ -90,6 +89,10 @@ func loadFromFile(name string) DatabaseSet {
 	})
 	loader.Footer()
 	return databases
+}
+
+func loadFromFile(name string) DatabaseSet {
+	return loadFromLoader(newLoaderFromFile(name))
 }
 
 func release(databases DatabaseSet) {
