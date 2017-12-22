@@ -29,10 +29,21 @@ static lazyfreeWorker *createLazyfreeWorker(void) {
   pthread_mutex_init(&p->mutex, NULL);
   pthread_cond_init(&p->cond, NULL);
   p->objs = listCreate();
-  if (pthread_create(&p->thread, NULL, lazyfreeWorkerMain, p) != 0) {
-    serverPanic("Can't create Lazyfree Worker.");
+  int ret = pthread_create(&p->thread, NULL, lazyfreeWorkerMain, p);
+  if (ret != 0) {
+    serverPanic("Can't create Lazyfree Worker [error=%d].", ret);
   }
   return p;
+}
+
+static void decrRefCountLazyfree(lazyfreeWorker *p, robj *o) {
+  serverAssert(o->refcount == 1);
+  pthread_mutex_lock(&p->mutex);
+  if (listLength(p->objs) == 0) {
+    pthread_cond_broadcast(&p->cond);
+  }
+  listAddNodeTail(p->objs, o);
+  pthread_mutex_unlock(&p->mutex);
 }
 
 extern void initServerConfig(void);
@@ -143,8 +154,48 @@ int redisObjectType(void *obj) { return ((robj *)obj)->type; }
 int redisObjectEncoding(void *obj) { return ((robj *)obj)->encoding; }
 int redisObjectRefCount(void *obj) { return ((robj *)obj)->refcount; }
 
+#define LAZYFREE_THRESHOLD 128
+
+size_t redisObjectLazyfreeGetFreeEffort(robj *o) {
+  if (o->refcount != 1) {
+    return 0;
+  }
+  switch (o->type) {
+  default:
+    return 0;
+  case OBJ_LIST:
+    if (o->encoding == OBJ_ENCODING_QUICKLIST) {
+      return listTypeLength(o);
+    }
+    return 0;
+  case OBJ_HASH:
+    if (o->encoding == OBJ_ENCODING_HT) {
+      return hashTypeLength(o) * 2;
+    }
+    return 0;
+  case OBJ_SET:
+    if (o->encoding == OBJ_ENCODING_HT) {
+      return setTypeSize(o);
+    }
+    return 0;
+  case OBJ_ZSET:
+    if (o->encoding == OBJ_ENCODING_SKIPLIST) {
+      return zsetLength(o) * 2;
+    }
+    return 0;
+  }
+}
+
 void redisObjectIncrRefCount(void *obj) { incrRefCount(obj); }
-void redisObjectDecrRefCount(void *obj) { decrRefCount(obj); }
+
+void redisObjectDecrRefCount(void *obj) {
+  size_t effort = redisObjectLazyfreeGetFreeEffort((robj *)obj);
+  if (lazyfree_worker != NULL && LAZYFREE_THRESHOLD < effort) {
+    decrRefCountLazyfree(lazyfree_worker, (robj *)obj);
+  } else {
+    decrRefCount(obj);
+  }
+}
 
 extern void createDumpPayload(rio *payload, robj *o);
 
