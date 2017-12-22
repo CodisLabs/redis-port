@@ -29,6 +29,7 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/bytesize"
 	"github.com/CodisLabs/codis/pkg/utils/errors"
 	"github.com/CodisLabs/codis/pkg/utils/log"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 )
 
 func init() {
@@ -154,7 +155,7 @@ func (r *redisRio) LoadObject(typ int) *RedisObject {
 	if obj == nil {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadObject() failed.")
 	}
-	return &RedisObject{obj}
+	return newRedisObject(obj)
 }
 
 func (r *redisRio) LoadStringObject() *RedisStringObject {
@@ -162,7 +163,7 @@ func (r *redisRio) LoadStringObject() *RedisStringObject {
 	if obj == nil {
 		log.PanicErrorf(io.ErrUnexpectedEOF, "Read RDB LoadStringObject() failed.")
 	}
-	return &RedisStringObject{&RedisObject{obj}}
+	return &RedisStringObject{newRedisObject(obj)}
 }
 
 const (
@@ -310,6 +311,14 @@ func (p *RedisSds) StringUnsafe() string {
 
 type RedisObject struct {
 	obj unsafe.Pointer
+
+	refs atomic2.Int64
+}
+
+func newRedisObject(obj unsafe.Pointer) *RedisObject {
+	o := &RedisObject{obj: obj}
+	o.refs.Set(1)
+	return o
 }
 
 func (o *RedisObject) Type() RedisType {
@@ -321,15 +330,25 @@ func (o *RedisObject) Encoding() RedisEncoding {
 }
 
 func (o *RedisObject) RefCount() int {
-	return int(C.redisObjectRefCount(o.obj))
+	return o.refs.AsInt()
 }
 
 func (o *RedisObject) IncrRefCount() {
-	C.redisObjectIncrRefCount(o.obj)
+	switch after := o.refs.Incr(); {
+	case after <= 1:
+		fallthrough
+	case after > 1024:
+		log.Panicf("Invalid IncrRefCount - [%d]", after-1)
+	}
 }
 
 func (o *RedisObject) DecrRefCount() {
-	C.redisObjectDecrRefCount(o.obj)
+	switch after := o.refs.Decr(); {
+	case after == 0:
+		C.redisObjectDecrRefCount(o.obj)
+	case after < 0:
+		log.Panicf("Invalid DecrRefCount - [%d]", after+1)
+	}
 }
 
 func (o *RedisObject) CreateDumpPayload() string {
@@ -351,7 +370,7 @@ func DecodeFromPayload(buf []byte) *RedisObject {
 	if obj == nil {
 		log.Panicf("Decode From Payload failed.")
 	}
-	return &RedisObject{obj}
+	return newRedisObject(obj)
 }
 
 func (o *RedisObject) IsString() bool {
