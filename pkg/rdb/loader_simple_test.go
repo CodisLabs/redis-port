@@ -96,7 +96,6 @@ func TestSimpleLongString(t *testing.T) {
 	var entry = databases[0]["string_long"]
 	assert.Must(entry != nil)
 	var value = entry.Value.AsString().String()
-	fmt.Println(len(value), 1<<16)
 	for i := 0; i < len(value); i++ {
 		assert.Must(value[i] == ('0' + uint8(i%2)))
 	}
