@@ -342,13 +342,14 @@ func (o *RedisObject) RefCount() int {
 	return o.refs.AsInt()
 }
 
-func (o *RedisObject) IncrRefCount() {
+func (o *RedisObject) IncrRefCount() *RedisObject {
 	switch after := o.refs.Incr(); {
 	case after <= 1:
 		fallthrough
 	case after > 1024:
 		log.Panicf("Invalid IncrRefCount - [%d]", after-1)
 	}
+	return o
 }
 
 func (o *RedisObject) DecrRefCount() {
@@ -453,8 +454,7 @@ func (o *RedisListObject) Len() int {
 }
 
 func (o *RedisListObject) NewIterator() *RedisListIterator {
-	var iter = C.redisListObjectNewIterator(o.obj)
-	return &RedisListIterator{iter: iter}
+	return newRedisListIterator(o)
 }
 
 func (o *RedisListObject) ForEach(on func(iter *RedisListIterator) bool) int {
@@ -520,17 +520,25 @@ func redisTypeIteratorLoad(iter unsafe.Pointer, size int, loader C.redisTypeIter
 
 type RedisListIterator struct {
 	iter unsafe.Pointer
+	robj *RedisObject
 
 	buffer redisSdsBuffer
 }
 
+func newRedisListIterator(o *RedisListObject) *RedisListIterator {
+	return &RedisListIterator{
+		iter: C.redisListObjectNewIterator(o.obj),
+		robj: o.IncrRefCount(),
+	}
+}
+
 func (p *RedisListIterator) Release() {
 	C.redisListIteratorRelease(p.iter)
+	p.robj.DecrRefCount()
 }
 
 func (p *RedisListIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256,
-		C.redisTypeIteratorLoader(C.redisListIteratorLoad))
+	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisListIteratorLoad))
 }
 
 func (p *RedisListIterator) Next() *RedisSds {
@@ -546,8 +554,7 @@ func (o *RedisHashObject) Len() int {
 }
 
 func (o *RedisHashObject) NewIterator() *RedisHashIterator {
-	var iter = C.redisHashObjectNewIterator(o.obj)
-	return &RedisHashIterator{iter: iter}
+	return newRedisHashIterator(o)
 }
 
 func (o *RedisHashObject) ForEach(on func(iter *RedisHashIterator) bool) int {
@@ -588,12 +595,21 @@ func (o *RedisHashObject) MapUnsafe() map[string]string {
 
 type RedisHashIterator struct {
 	iter unsafe.Pointer
+	robj *RedisObject
 
 	buffer redisSdsBuffer
 }
 
+func newRedisHashIterator(o *RedisHashObject) *RedisHashIterator {
+	return &RedisHashIterator{
+		iter: C.redisHashObjectNewIterator(o.obj),
+		robj: o.IncrRefCount(),
+	}
+}
+
 func (p *RedisHashIterator) Release() {
 	C.redisHashIteratorRelease(p.iter)
+	p.robj.DecrRefCount()
 }
 
 func (p *RedisHashIterator) Load() []C.redisSds {
@@ -617,8 +633,7 @@ func (o *RedisZsetObject) Len() int {
 }
 
 func (o *RedisZsetObject) NewIterator() *RedisZsetIterator {
-	var iter = C.redisZsetObjectNewIterator(o.obj)
-	return &RedisZsetIterator{iter: iter}
+	return newRedisZsetIterator(o)
 }
 
 func (o *RedisZsetObject) ForEach(on func(iter *RedisZsetIterator) bool) int {
@@ -659,12 +674,21 @@ func (o *RedisZsetObject) MapUnsafe() map[string]float64 {
 
 type RedisZsetIterator struct {
 	iter unsafe.Pointer
+	robj *RedisObject
 
 	buffer redisSdsBuffer
 }
 
+func newRedisZsetIterator(o *RedisZsetObject) *RedisZsetIterator {
+	return &RedisZsetIterator{
+		iter: C.redisZsetObjectNewIterator(o.obj),
+		robj: o.IncrRefCount(),
+	}
+}
+
 func (p *RedisZsetIterator) Release() {
 	C.redisZsetIteratorRelease(p.iter)
+	p.robj.DecrRefCount()
 }
 
 func (p *RedisZsetIterator) Load() []C.redisSds {
@@ -720,18 +744,26 @@ func (o *RedisSetObject) MapUnsafe() map[string]bool {
 }
 
 func (o *RedisSetObject) NewIterator() *RedisSetIterator {
-	var iter = C.redisSetObjectNewIterator(o.obj)
-	return &RedisSetIterator{iter: iter}
+	return newRedisSetIterator(o)
 }
 
 type RedisSetIterator struct {
 	iter unsafe.Pointer
+	robj *RedisObject
 
 	buffer redisSdsBuffer
 }
 
+func newRedisSetIterator(o *RedisSetObject) *RedisSetIterator {
+	return &RedisSetIterator{
+		iter: C.redisSetObjectNewIterator(o.obj),
+		robj: o.IncrRefCount(),
+	}
+}
+
 func (p *RedisSetIterator) Release() {
 	C.redisSetIteratorRelease(p.iter)
+	p.robj.DecrRefCount()
 }
 
 func (p *RedisSetIterator) Load() []C.redisSds {
