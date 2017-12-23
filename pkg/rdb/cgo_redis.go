@@ -277,11 +277,11 @@ type RedisSds struct {
 	Value int64
 	Score float64
 
-	IsOwner bool
+	IsLeak bool
 }
 
 func (p *RedisSds) Release() {
-	if p.IsOwner && p.Ptr != nil {
+	if p.IsLeak && p.Ptr != nil {
 		C.redisSdsFree(p.Ptr)
 	}
 }
@@ -371,7 +371,7 @@ func (o *RedisObject) CreateDumpPayload() string {
 func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisSds {
 	var sds C.redisSds
 	C.redisObjectCreateDumpPayload(o.obj, &sds)
-	return &RedisSds{Ptr: sds.ptr, Len: int(sds.len), IsOwner: true}
+	return &RedisSds{Ptr: sds.ptr, Len: int(sds.len), IsLeak: true}
 }
 
 func DecodeFromPayload(buf []byte) *RedisObject {
