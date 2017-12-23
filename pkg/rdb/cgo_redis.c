@@ -130,12 +130,11 @@ void redisObjectDecrRefCount(void *obj) {
 
 extern void createDumpPayload(rio *payload, robj *o);
 
-void *redisObjectCreateDumpPayload(void *obj, size_t *len) {
+void redisObjectCreateDumpPayload(void *obj, redisSds *p) {
   rio payload;
   createDumpPayload(&payload, obj);
-  sds buf = payload.io.buffer.ptr;
-  *len = sdslen(buf);
-  return buf;
+  p->ptr = payload.io.buffer.ptr;
+  p->len = sdslen(p->ptr);
 }
 
 extern int verifyDumpPayload(const char *buf, size_t len);

@@ -43,7 +43,7 @@ int redisObjectRefCount(void *obj);
 void redisObjectIncrRefCount(void *obj);
 void redisObjectDecrRefCount(void *obj);
 
-void *redisObjectCreateDumpPayload(void *obj, size_t *len);
+void redisObjectCreateDumpPayload(void *obj, redisSds *p);
 void *redisObjectDecodeFromPayload(void *buf, size_t len);
 
 /* API of redis String */

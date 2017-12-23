@@ -369,9 +369,9 @@ func (o *RedisObject) CreateDumpPayload() string {
 }
 
 func (o *RedisObject) CreateDumpPayloadUnsafe() *RedisSds {
-	var len C.size_t
-	var ptr = C.redisObjectCreateDumpPayload(o.obj, &len)
-	return &RedisSds{Ptr: ptr, Len: int(len), IsOwner: true}
+	var sds C.redisSds
+	C.redisObjectCreateDumpPayload(o.obj, &sds)
+	return &RedisSds{Ptr: sds.ptr, Len: int(sds.len), IsOwner: true}
 }
 
 func DecodeFromPayload(buf []byte) *RedisObject {
