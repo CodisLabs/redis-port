@@ -331,9 +331,9 @@ func (o *RedisObject) Encoding() RedisEncoding {
 
 func (o *RedisObject) IsEncodedObject() bool {
 	switch o.Encoding() {
-	case OBJ_ENCODING_INT, OBJ_ENCODING_INTSET, OBJ_ENCODING_ZIPLIST:
-		return true
 	default:
+		return true
+	case OBJ_ENCODING_QUICKLIST, OBJ_ENCODING_HT, OBJ_ENCODING_SKIPLIST:
 		return false
 	}
 }
