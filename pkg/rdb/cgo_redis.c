@@ -1,56 +1,9 @@
 #include "cgo_redis.h"
 
-typedef struct {
-  pthread_t thread;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-  list *objs;
-} lazyfreeWorker;
-
-static void *lazyfreeWorkerMain(void *args) {
-  lazyfreeWorker *p = args;
-  while (1) {
-    pthread_mutex_lock(&p->mutex);
-    while (listLength(p->objs) == 0) {
-      pthread_cond_wait(&p->cond, &p->mutex);
-    }
-    listNode *head = listFirst(p->objs);
-    robj *o = listNodeValue(head);
-    listDelNode(p->objs, head);
-    pthread_mutex_unlock(&p->mutex);
-    serverAssert(o->refcount == 1);
-    decrRefCount(o);
-  }
-  return NULL;
-}
-
-static lazyfreeWorker *createLazyfreeWorker(void) {
-  lazyfreeWorker *p = zmalloc(sizeof(*p));
-  pthread_mutex_init(&p->mutex, NULL);
-  pthread_cond_init(&p->cond, NULL);
-  p->objs = listCreate();
-  int ret = pthread_create(&p->thread, NULL, lazyfreeWorkerMain, p);
-  if (ret != 0) {
-    serverPanic("Can't create Lazyfree Worker [error=%d].", ret);
-  }
-  return p;
-}
-
-static void decrRefCountLazyfree(lazyfreeWorker *p, robj *o) {
-  serverAssert(o->refcount == 1);
-  pthread_mutex_lock(&p->mutex);
-  if (listLength(p->objs) == 0) {
-    pthread_cond_broadcast(&p->cond);
-  }
-  listAddNodeTail(p->objs, o);
-  pthread_mutex_unlock(&p->mutex);
-}
-
 extern void initServerConfig(void);
 extern void loadServerConfigFromString(char *config);
 extern void createSharedObjects(void);
-
-static lazyfreeWorker *lazyfree_worker = NULL;
+extern void initLazyfreeThreads(void);
 
 void initRedisServer(const void *buf, size_t len) {
   initServerConfig();
@@ -60,7 +13,7 @@ void initRedisServer(const void *buf, size_t len) {
     loadServerConfigFromString(config);
     sdsfree(config);
   }
-  lazyfree_worker = createLazyfreeWorker();
+  initLazyfreeThreads();
 }
 
 #include <stddef.h>
@@ -154,46 +107,16 @@ int redisObjectType(void *obj) { return ((robj *)obj)->type; }
 int redisObjectEncoding(void *obj) { return ((robj *)obj)->encoding; }
 int redisObjectRefCount(void *obj) { return ((robj *)obj)->refcount; }
 
-#define LAZYFREE_THRESHOLD 128
-
-size_t redisObjectLazyfreeGetFreeEffort(robj *o) {
-  if (o->refcount != 1) {
-    return 0;
-  }
-  switch (o->type) {
-  default:
-    return 0;
-  case OBJ_LIST:
-    if (o->encoding == OBJ_ENCODING_QUICKLIST) {
-      return listTypeLength(o);
-    }
-    return 0;
-  case OBJ_HASH:
-    if (o->encoding == OBJ_ENCODING_HT) {
-      return hashTypeLength(o) * 2;
-    }
-    return 0;
-  case OBJ_SET:
-    if (o->encoding == OBJ_ENCODING_HT) {
-      return setTypeSize(o);
-    }
-    return 0;
-  case OBJ_ZSET:
-    if (o->encoding == OBJ_ENCODING_SKIPLIST) {
-      return zsetLength(o) * 2;
-    }
-    return 0;
-  }
-}
+extern size_t lazyfreeObjectGetFreeEffort(robj *o);
+extern void decrRefCountByLazyfreeThreads(robj *o);
 
 void redisObjectIncrRefCount(void *obj) { incrRefCount(obj); }
 
 void redisObjectDecrRefCount(void *obj) {
-  size_t effort = redisObjectLazyfreeGetFreeEffort((robj *)obj);
-  if (lazyfree_worker != NULL && LAZYFREE_THRESHOLD < effort) {
-    decrRefCountLazyfree(lazyfree_worker, (robj *)obj);
-  } else {
+  if (lazyfreeObjectGetFreeEffort((robj *)obj) < 128) {
     decrRefCount(obj);
+  } else {
+    decrRefCountByLazyfreeThreads((robj *)obj);
   }
 }
 
