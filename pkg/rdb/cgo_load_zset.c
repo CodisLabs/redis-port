@@ -63,6 +63,65 @@ static void zsetNodeVectorSort(zsetNodeVector* v,
   }
 }
 
+extern int rdbLoadDoubleValue(rio* rdb, double* val);
+
 robj* rdbLoadZsetObject(int rdbtype, rio* rdb) {
-  return rdbLoadObject(rdbtype, rdb);
+  serverAssert(rdbtype == RDB_TYPE_ZSET || rdbtype == RDB_TYPE_ZSET_2);
+
+  /* Copied from redis/src/rdb.c */
+  uint64_t zsetlen;
+  if ((zsetlen = rdbLoadLen(rdb, NULL)) == RDB_LENERR) return NULL;
+
+  robj* o = createZsetObject();
+
+  /* Create zsetNodeVector if zset's length is greater than the threshold. */
+  zsetNodeVector* v = (zsetlen < 128) ? NULL : zsetNodeVectorInit(zsetlen);
+
+  zset* zs = o->ptr;
+
+  serverAssert(zsetlen != 0);
+  dictExpand(zs->dict, zsetlen);
+
+  size_t maxelelen = 0;
+
+  /* Load every single element of the sorted set. */
+  while (zsetlen--) {
+    sds sdsele;
+    double score;
+
+    if ((sdsele = rdbGenericLoadStringObject(rdb, RDB_LOAD_SDS, NULL)) == NULL)
+      return NULL;
+    if (rdbtype == RDB_TYPE_ZSET_2) {
+      if (rdbLoadBinaryDoubleValue(rdb, &score) == -1) return NULL;
+    } else {
+      if (rdbLoadDoubleValue(rdb, &score) == -1) return NULL;
+    }
+
+    /* Don't care about integer-encoded strings. */
+    if (sdslen(sdsele) > maxelelen) maxelelen = sdslen(sdsele);
+
+    if (v != NULL) {
+      zsetNodeVectorPush(v, sdsele, score);
+    } else {
+      zskiplistNode* znode = zslInsert(zs->zsl, score, sdsele);
+      dictAdd(zs->dict, sdsele, &znode->score);
+    }
+  }
+
+  if (v != NULL) {
+    zsetNodeVectorSort(v, zsetNodeCompareInReverseOrder);
+    for (size_t i = 0; i < v->len; i++) {
+      zsetNode* n = &v->buf[i];
+      zskiplistNode* znode = zslInsert(zs->zsl, n->score, n->sdsele);
+      dictAdd(zs->dict, n->sdsele, &znode->score);
+    }
+    zsetNodeVectorFree(v);
+  }
+
+  /* Convert *after* loading, since sorted sets are not stored ordered. */
+  if (zsetLength(o) <= server.zset_max_ziplist_entries &&
+      maxelelen <= server.zset_max_ziplist_value) {
+    zsetConvert(o, OBJ_ENCODING_ZIPLIST);
+  }
+  return o;
 }
