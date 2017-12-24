@@ -18,11 +18,11 @@ package rdb
 import "C"
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 	"unsafe"
 
@@ -33,19 +33,23 @@ import (
 )
 
 func init() {
-	var buf = strings.TrimSpace(`
-        hash-max-ziplist-entries       0
-        hash-max-ziplist-value         0
-        list-compress-depth            0
-        list-max-ziplist-size          0
-        set-max-intset-entries         0
-        zset-max-ziplist-entries       0
-        zset-max-ziplist-value         0
-        rdbchecksum                    yes
-        rdbcompression                 no
-	`)
-	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&buf))
-	C.initRedisServer(unsafe.Pointer(hdr.Data), C.size_t(hdr.Len))
+	var buf bytes.Buffer
+	for k, v := range map[string]interface{}{
+		"hash-max-ziplist-entries": 0,
+		"hash-max-ziplist-value":   0,
+		"list-compress-depth":      0,
+		"list-max-ziplist-size":    0,
+		"set-max-intset-entries":   0,
+		"zset-max-ziplist-entries": 0,
+		"zset-max-ziplist-value":   0,
+		"rdbchecksum":              "yes",
+		"rdbcompression":           "no",
+	} {
+		fmt.Fprintf(&buf, "%s %v\n", k, v)
+	}
+	var cfg = append(buf.Bytes(), byte(0))
+	var hdr = (*reflect.StringHeader)(unsafe.Pointer(&cfg))
+	C.initRedisServer((*C.char)(unsafe.Pointer(hdr.Data)))
 }
 
 type ZmallocMemStats struct {

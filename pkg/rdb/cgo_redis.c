@@ -5,14 +5,10 @@ extern void loadServerConfigFromString(char *config);
 extern void createSharedObjects(void);
 extern void initLazyfreeThreads(void);
 
-void initRedisServer(const void *buf, size_t len) {
+void initRedisServer(char *config) {
   initServerConfig();
   createSharedObjects();
-  if (buf != NULL && len != 0) {
-    sds config = sdsnewlen(buf, len);
-    loadServerConfigFromString(config);
-    sdsfree(config);
-  }
+  loadServerConfigFromString(config);
   initLazyfreeThreads();
 }
 

@@ -1,6 +1,6 @@
 #include <redis/src/server.h>
 
-void initRedisServer(const void *buf, size_t len);
+void initRedisServer(char *config);
 
 /* API of Redis Rio/Rdb */
 
