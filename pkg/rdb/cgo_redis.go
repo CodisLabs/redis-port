@@ -613,10 +613,8 @@ func (o *RedisHashObject) MapUnsafe() map[string]string {
 }
 
 type RedisHashIterator struct {
-	iter unsafe.Pointer
+	iter *C.redisTypeIterator
 	robj *RedisObject
-
-	buffer redisSdsBuffer
 }
 
 func newRedisHashIterator(o *RedisHashObject) *RedisHashIterator {
@@ -631,14 +629,10 @@ func (p *RedisHashIterator) Release() {
 	p.robj.DecrRefCount()
 }
 
-func (p *RedisHashIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisHashIteratorLoad))
-}
-
 func (p *RedisHashIterator) Next() (*RedisSds, *RedisSds) {
-	var key = p.buffer.PopFirst(p.Load)
+	var key = redisTypeIteratorNext(p.iter)
 	if key != nil {
-		return key, p.buffer.PopFirst(p.Load)
+		return key, redisTypeIteratorNext(p.iter)
 	}
 	return nil, nil
 }
