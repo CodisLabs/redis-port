@@ -497,6 +497,27 @@ func (o *RedisListObject) StringsUnsafe() []string {
 	return list
 }
 
+func redisTypeIteratorHasNext(p *C.redisTypeIterator) bool {
+	var empty = func() bool { return p.index == p.slice.len }
+	if !empty() {
+		return true
+	} else {
+		C.redisTypeIteratorLoad(p)
+		return !empty()
+	}
+}
+
+func redisTypeIteratorNext(p *C.redisTypeIterator) *RedisSds {
+	if !redisTypeIteratorHasNext(p) {
+		return nil
+	}
+	var first *C.redisSds
+	first, p.index = &p.slice.buf[p.index], p.index+1
+	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), Score: float64(first.score)}
+}
+
+////////////////////// TODO /////////////////
+
 type redisSdsBuffer struct {
 	buffer []C.redisSds
 }
@@ -523,10 +544,8 @@ func redisTypeIteratorLoad(iter unsafe.Pointer, size int, loader C.redisTypeIter
 }
 
 type RedisListIterator struct {
-	iter unsafe.Pointer
+	iter *C.redisTypeIterator
 	robj *RedisObject
-
-	buffer redisSdsBuffer
 }
 
 func newRedisListIterator(o *RedisListObject) *RedisListIterator {
@@ -541,12 +560,8 @@ func (p *RedisListIterator) Release() {
 	p.robj.DecrRefCount()
 }
 
-func (p *RedisListIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisListIteratorLoad))
-}
-
 func (p *RedisListIterator) Next() *RedisSds {
-	return p.buffer.PopFirst(p.Load)
+	return redisTypeIteratorNext(p.iter)
 }
 
 type RedisHashObject struct {
