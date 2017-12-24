@@ -79,15 +79,8 @@ void redisZsetIteratorRelease(redisTypeIterator *p);
 
 /* API of redis Set */
 size_t redisSetObjectLen(void *obj);
-void *redisSetObjectNewIterator(void *obj);
-void redisSetIteratorRelease(void *iter);
-size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len);
-
-/* API of iterator loader */
-typedef size_t (*redisTypeIteratorLoader)(void *iter, redisSds *buf,
-                                          size_t len);
-size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
-                                     void *iter, redisSds *buf, size_t len);
+redisTypeIterator *redisSetObjectNewIterator(void *obj);
+void redisSetIteratorRelease(redisTypeIterator *p);
 
 /* API of redis zmalloc */
 extern size_t zmalloc_used_memory(void);

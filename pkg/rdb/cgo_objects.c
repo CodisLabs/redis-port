@@ -87,39 +87,3 @@ size_t redisSetObjectLen(void *obj) {
   serverAssert(o->type == OBJ_SET);
   return setTypeSize(o);
 }
-
-void *redisSetObjectNewIterator(void *obj) {
-  robj *o = obj;
-  serverAssert(o->type == OBJ_SET);
-  return setTypeInitIterator(o);
-}
-
-void redisSetIteratorRelease(void *iter) { setTypeReleaseIterator(iter); }
-
-static int redisSetIteratorNext(void *iter, redisSds *p) {
-  sds value;
-  int64_t llele;
-  int encoding = setTypeNext(iter, &value, &llele);
-  if (encoding == -1) {
-    return C_ERR;
-  }
-  if (encoding != OBJ_ENCODING_INTSET) {
-    p->ptr = value, p->len = sdslen(value);
-  } else {
-    p->val = llele;
-  }
-  return C_OK;
-}
-
-size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len) {
-  size_t i = 0;
-  while (i < len && redisSetIteratorNext(iter, &buf[i]) != C_ERR) {
-    i++;
-  }
-  return i;
-}
-
-size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
-                                     void *iter, redisSds *buf, size_t len) {
-  return (*loader)(iter, buf, len);
-}

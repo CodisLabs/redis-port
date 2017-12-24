@@ -172,3 +172,44 @@ void redisZsetIteratorRelease(redisTypeIterator *p) {
   zfree(p->iter);
   redisTypeIteratorFree(p);
 }
+
+static int redisSetIteratorNext(void *iter, redisSds *p) {
+  sds value;
+  int64_t llele;
+  int encoding = setTypeNext(iter, &value, &llele);
+  if (encoding == -1) {
+    return C_ERR;
+  }
+  memset(p, 0, sizeof(*p));
+
+  if (encoding == OBJ_ENCODING_HT) {
+    p->ptr = value, p->len = sdslen(value);
+  } else if (encoding == OBJ_ENCODING_INTSET) {
+    p->val = llele;
+  } else {
+    serverPanic("Unknown set encoding.");
+  }
+  return C_OK;
+}
+
+static size_t redisSetIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  size_t i = 0;
+  while (i < len && redisSetIteratorNext(iter, &buf[i]) != C_ERR) {
+    i++;
+  }
+  return i;
+}
+
+redisTypeIterator *redisSetObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssert(o->type == OBJ_SET);
+  redisTypeIterator *p = redisTypeIteratorInit();
+  p->iter = setTypeInitIterator(o);
+  p->load = redisSetIteratorLoad;
+  return p;
+}
+
+void redisSetIteratorRelease(redisTypeIterator *p) {
+  setTypeReleaseIterator(p->iter);
+  redisTypeIteratorFree(p);
+}

@@ -516,33 +516,6 @@ func redisTypeIteratorNext(p *C.redisTypeIterator) *RedisSds {
 	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), Score: float64(first.score)}
 }
 
-////////////////////// TODO /////////////////
-
-type redisSdsBuffer struct {
-	buffer []C.redisSds
-}
-
-func (p *redisSdsBuffer) PopFirst(load func() []C.redisSds) *RedisSds {
-	if len(p.buffer) == 0 {
-		if p.buffer = load(); len(p.buffer) == 0 {
-			return nil
-		}
-	}
-	var first *C.redisSds
-	first, p.buffer = &p.buffer[0], p.buffer[1:]
-	return &RedisSds{Ptr: first.ptr, Len: int(first.len), Value: int64(first.val), Score: float64(first.score)}
-}
-
-func redisTypeIteratorLoad(iter unsafe.Pointer, size int, loader C.redisTypeIteratorLoader) []C.redisSds {
-	var buf = make([]C.redisSds, size)
-	var hdr = (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	var ret = C.redisTypeIteratorLoaderInvoke(&loader, iter, (*C.redisSds)(unsafe.Pointer(hdr.Data)), C.size_t(hdr.Len))
-	if ret != 0 {
-		return buf[:ret]
-	}
-	return nil
-}
-
 type RedisListIterator struct {
 	iter *C.redisTypeIterator
 	robj *RedisObject
@@ -755,10 +728,8 @@ func (o *RedisSetObject) NewIterator() *RedisSetIterator {
 }
 
 type RedisSetIterator struct {
-	iter unsafe.Pointer
+	iter *C.redisTypeIterator
 	robj *RedisObject
-
-	buffer redisSdsBuffer
 }
 
 func newRedisSetIterator(o *RedisSetObject) *RedisSetIterator {
@@ -773,10 +744,6 @@ func (p *RedisSetIterator) Release() {
 	p.robj.DecrRefCount()
 }
 
-func (p *RedisSetIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisSetIteratorLoad))
-}
-
 func (p *RedisSetIterator) Next() *RedisSds {
-	return p.buffer.PopFirst(p.Load)
+	return redisTypeIteratorNext(p.iter)
 }
