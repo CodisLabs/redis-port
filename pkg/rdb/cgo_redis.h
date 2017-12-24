@@ -26,14 +26,14 @@ void *redisRioLoadStringObject(redisRio *p);
 inline uint64_t redisRioChecksum(redisRio *p) { return p->rdb.cksum; }
 
 /* API of Sds */
-void redisSdsFree(void *ptr);
-
 typedef struct {
   void *ptr;
   size_t len;
   long long val;
   double score;
 } redisSds;
+
+inline void redisSdsFreePtr(void *ptr) { sdsfree(ptr); }
 
 /* API of redis Object */
 int redisObjectType(void *obj);
@@ -81,6 +81,6 @@ size_t redisTypeIteratorLoaderInvoke(redisTypeIteratorLoader *loader,
                                      void *iter, redisSds *buf, size_t len);
 
 /* API of redis zmalloc */
-size_t zmalloc_used_memory(void);
-size_t zmalloc_memory_size(void);
-size_t zmalloc_get_rss(void);
+extern size_t zmalloc_used_memory(void);
+extern size_t zmalloc_memory_size(void);
+extern size_t zmalloc_get_rss(void);

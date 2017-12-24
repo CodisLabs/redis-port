@@ -286,7 +286,7 @@ type RedisSds struct {
 
 func (p *RedisSds) Release() {
 	if p.IsLeak && p.Ptr != nil {
-		C.redisSdsFree(p.Ptr)
+		C.redisSdsFreePtr(p.Ptr)
 	}
 }
 
