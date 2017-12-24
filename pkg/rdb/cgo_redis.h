@@ -74,9 +74,8 @@ void redisHashIteratorRelease(redisTypeIterator *p);
 
 /* API of redis Zset */
 size_t redisZsetObjectLen(void *obj);
-void *redisZsetObjectNewIterator(void *obj);
-void redisZsetIteratorRelease(void *iter);
-size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len);
+redisTypeIterator *redisZsetObjectNewIterator(void *obj);
+void redisZsetIteratorRelease(redisTypeIterator *p);
 
 /* API of redis Set */
 size_t redisSetObjectLen(void *obj);

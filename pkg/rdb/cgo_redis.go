@@ -686,10 +686,8 @@ func (o *RedisZsetObject) MapUnsafe() map[string]float64 {
 }
 
 type RedisZsetIterator struct {
-	iter unsafe.Pointer
+	iter *C.redisTypeIterator
 	robj *RedisObject
-
-	buffer redisSdsBuffer
 }
 
 func newRedisZsetIterator(o *RedisZsetObject) *RedisZsetIterator {
@@ -704,12 +702,8 @@ func (p *RedisZsetIterator) Release() {
 	p.robj.DecrRefCount()
 }
 
-func (p *RedisZsetIterator) Load() []C.redisSds {
-	return redisTypeIteratorLoad(p.iter, 256, C.redisTypeIteratorLoader(C.redisZsetIteratorLoad))
-}
-
 func (p *RedisZsetIterator) Next() *RedisSds {
-	return p.buffer.PopFirst(p.Load)
+	return redisTypeIteratorNext(p.iter)
 }
 
 type RedisSetObject struct {

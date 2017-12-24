@@ -92,3 +92,83 @@ void redisHashIteratorRelease(redisTypeIterator *p) {
   hashTypeReleaseIterator(p->iter);
   redisTypeIteratorFree(p);
 }
+
+typedef struct {
+  robj *obj;
+  size_t length;
+  unsigned char *eptr;
+  unsigned char *sptr;
+  zskiplistNode *ln;
+} redisZsetIterator;
+
+static int redisZsetIteratorNext(void *iter, redisSds *p) {
+  redisZsetIterator *it = iter;
+  if (it->length == 0) {
+    return C_ERR;
+  }
+  memset(p, 0, sizeof(*p));
+
+  robj *o = it->obj;
+  if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+    unsigned char *vstr = NULL;
+    unsigned int vlen;
+    serverAssert(it->eptr != NULL && it->sptr != NULL);
+    serverAssert(ziplistGet(it->eptr, &vstr, &vlen, &p->val));
+    if (vstr) {
+      p->ptr = vstr, p->len = vlen;
+    }
+    p->score = zzlGetScore(it->sptr);
+    zzlNext(o->ptr, &it->eptr, &it->sptr);
+  } else if (o->encoding == OBJ_ENCODING_SKIPLIST) {
+    zskiplistNode *ln = it->ln;
+    serverAssert(ln != NULL);
+    p->ptr = ln->ele, p->len = sdslen(ln->ele);
+    p->score = ln->score;
+    it->ln = ln->level[0].forward;
+  } else {
+    serverPanic("Unknown sorted set encoding.");
+  }
+  it->length--;
+  return C_OK;
+}
+
+static size_t redisZsetIteratorLoad(void *iter, redisSds *buf, size_t len) {
+  size_t i = 0;
+  while (i < len && redisZsetIteratorNext(iter, &buf[i]) != C_ERR) {
+    i++;
+  }
+  return i;
+}
+
+redisTypeIterator *redisZsetObjectNewIterator(void *obj) {
+  robj *o = obj;
+  serverAssert(o->type == OBJ_ZSET);
+
+  redisZsetIterator *it = zcalloc(sizeof(*it));
+  it->obj = obj, it->length = zsetLength(o);
+
+  if (o->encoding == OBJ_ENCODING_ZIPLIST) {
+    unsigned char *zl = o->ptr;
+    it->eptr = ziplistIndex(zl, 0);
+    serverAssert(it->eptr != NULL);
+    it->sptr = ziplistNext(zl, it->eptr);
+    serverAssert(it->sptr != NULL);
+  } else if (o->encoding == OBJ_ENCODING_SKIPLIST) {
+    zset *zs = o->ptr;
+    zskiplist *zsl = zs->zsl;
+    it->ln = zsl->header->level[0].forward;
+    serverAssert(it->ln != NULL);
+  } else {
+    serverPanic("Unknown sorted set encoding.");
+  }
+
+  redisTypeIterator *p = redisTypeIteratorInit();
+  p->iter = it;
+  p->load = redisZsetIteratorLoad;
+  return p;
+}
+
+void redisZsetIteratorRelease(redisTypeIterator *p) {
+  zfree(p->iter);
+  redisTypeIteratorFree(p);
+}
