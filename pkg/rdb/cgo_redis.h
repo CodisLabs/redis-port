@@ -35,6 +35,18 @@ typedef struct {
 
 inline void redisSdsFreePtr(void *ptr) { sdsfree(ptr); }
 
+typedef struct {
+  void *iter;
+  struct {
+    size_t len;
+    redisSds buf[512];
+  } slice;
+  size_t index;
+  size_t (*load)(void *iter, redisSds *buf, size_t len);
+} redisTypeIterator;
+
+void redisTypeIteratorLoad(redisTypeIterator *p);
+
 /* API of redis Object */
 int redisObjectType(void *obj);
 int redisObjectEncoding(void *obj);
