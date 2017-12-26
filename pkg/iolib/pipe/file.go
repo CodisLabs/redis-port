@@ -9,7 +9,7 @@ import (
 
 const (
 	fileBufferPageSize    = 1024 * 1024 * 4
-	defaultFileBufferSize = 1024 * 1024 * 256
+	defaultFileBufferSize = 1024 * 1024 * 32
 )
 
 type fileBuffer struct {
