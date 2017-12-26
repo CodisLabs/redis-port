@@ -1,6 +1,9 @@
 package pipe
 
-import "io"
+import (
+	"io"
+	"os"
+)
 
 type Reader interface {
 	io.ReadCloser
@@ -36,4 +39,18 @@ func (p *PipeWriter) Close() error {
 
 func (p *PipeWriter) CloseWithError(err error) error {
 	return p.CloseWriter(err)
+}
+
+func New() (Reader, Writer) {
+	return NewSize(defaultMemBufferSize)
+}
+
+func NewSize(size int) (Reader, Writer) {
+	var p = NewPipeSize(size)
+	return p.Reader(), p.Writer()
+}
+
+func NewFile(file *os.File, size int) (Reader, Writer) {
+	var p = NewPipeFile(file, size)
+	return p.Reader(), p.Writer()
 }
