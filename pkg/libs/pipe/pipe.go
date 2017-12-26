@@ -21,6 +21,11 @@ func newPipe(store Buffer) *Pipe {
 	panic("TODO")
 }
 
+func (p *Pipe) Close() {
+	p.CloseReader(nil)
+	p.CloseWriter(nil)
+}
+
 func (p *Pipe) Reader() Reader {
 	return &PipeReader{p}
 }
