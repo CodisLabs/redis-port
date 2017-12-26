@@ -50,39 +50,27 @@ func (p *Pipe) Reader() Reader {
 func (p *Pipe) Read(b []byte) (int, error) {
 	p.rd.Lock()
 	defer p.rd.Unlock()
-	for {
-		n, err := p.readSome(b)
-		if err != nil || n != 0 {
-			return n, err
-		}
-		if len(b) == 0 {
-			return 0, nil
-		}
-	}
-}
-
-func (p *Pipe) readSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.rd.err != nil {
-		return 0, errors.Trace(io.ErrClosedPipe)
-	}
-	if len(b) == 0 {
-		if p.store.Buffered() != 0 {
-			return 0, nil
+	for {
+		if p.rd.err != nil {
+			return 0, errors.Trace(io.ErrClosedPipe)
 		}
-		return 0, p.wt.err
-	}
-	n, err := p.store.ReadSome(b)
-	if err != nil || n != 0 {
-		p.wt.cond.Signal()
-		return n, err
-	}
-	if p.wt.err != nil {
-		return 0, p.wt.err
-	} else {
+		if len(b) == 0 {
+			if p.store.Buffered() != 0 {
+				return 0, nil
+			}
+			return 0, p.wt.err
+		}
+		n, err := p.store.ReadSome(b)
+		if err != nil || n != 0 {
+			p.wt.cond.Signal()
+			return n, err
+		}
+		if p.wt.err != nil {
+			return 0, p.wt.err
+		}
 		p.rd.cond.Wait()
-		return 0, nil
 	}
 }
 
@@ -120,35 +108,30 @@ func (p *Pipe) Writer() Writer {
 func (p *Pipe) Write(b []byte) (int, error) {
 	p.wt.Lock()
 	defer p.wt.Unlock()
-	var nn int
-	for {
-		n, err := p.writeSome(b)
-		if err != nil || n == len(b) {
-			return nn + n, err
-		}
-		nn, b = nn+n, b[n:]
-	}
-}
-
-func (p *Pipe) writeSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.wt.err != nil {
-		return 0, errors.Trace(io.ErrClosedPipe)
-	}
-	if p.rd.err != nil {
-		return 0, p.rd.err
-	}
-	if len(b) == 0 {
-		return 0, nil
-	}
-	n, err := p.store.WriteSome(b)
-	if err != nil || n != 0 {
-		p.rd.cond.Signal()
-		return n, err
-	} else {
+	var nn int
+	for {
+		if p.wt.err != nil {
+			return nn, errors.Trace(io.ErrClosedPipe)
+		}
+		if p.rd.err != nil {
+			return nn, p.rd.err
+		}
+		if len(b) == 0 {
+			return nn, nil
+		}
+	again:
+		n, err := p.store.WriteSome(b)
+		if err != nil || n != 0 {
+			p.rd.cond.Signal()
+			nn, b = nn+n, b[n:]
+			if err == nil && len(b) != 0 {
+				goto again
+			}
+			return nn, err
+		}
 		p.wt.cond.Wait()
-		return 0, nil
 	}
 }
 
