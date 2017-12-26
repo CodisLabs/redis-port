@@ -9,13 +9,12 @@ import (
 )
 
 type Pipe struct {
-	r, w struct {
+	rd, wt struct {
 		sync.Mutex
 		cond *sync.Cond
+		err  error
 	}
 	mu sync.Mutex
-
-	rerr, werr error
 
 	store Buffer
 }
@@ -34,8 +33,8 @@ func NewPipeFile(file *os.File, size int) *Pipe {
 
 func newPipe(store Buffer) *Pipe {
 	p := &Pipe{store: store}
-	p.r.cond = sync.NewCond(&p.mu)
-	p.w.cond = sync.NewCond(&p.mu)
+	p.rd.cond = sync.NewCond(&p.mu)
+	p.wt.cond = sync.NewCond(&p.mu)
 	return p
 }
 
@@ -49,8 +48,8 @@ func (p *Pipe) Reader() Reader {
 }
 
 func (p *Pipe) Read(b []byte) (int, error) {
-	p.r.Lock()
-	defer p.r.Unlock()
+	p.rd.Lock()
+	defer p.rd.Unlock()
 	for {
 		n, err := p.readSome(b)
 		if err != nil || n != 0 {
@@ -65,24 +64,24 @@ func (p *Pipe) Read(b []byte) (int, error) {
 func (p *Pipe) readSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.rerr != nil {
+	if p.rd.err != nil {
 		return 0, errors.Trace(io.ErrClosedPipe)
 	}
 	if len(b) == 0 {
 		if p.store.Buffered() != 0 {
 			return 0, nil
 		}
-		return 0, p.werr
+		return 0, p.wt.err
 	}
 	n, err := p.store.ReadSome(b)
 	if err != nil || n != 0 {
-		p.w.cond.Signal()
+		p.wt.cond.Signal()
 		return n, err
 	}
-	if p.werr != nil {
-		return 0, p.werr
+	if p.wt.err != nil {
+		return 0, p.wt.err
 	} else {
-		p.r.cond.Wait()
+		p.rd.cond.Wait()
 		return 0, nil
 	}
 }
@@ -90,13 +89,13 @@ func (p *Pipe) readSome(b []byte) (int, error) {
 func (p *Pipe) Buffered() (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.rerr != nil {
-		return 0, p.rerr
+	if p.rd.err != nil {
+		return 0, p.rd.err
 	}
 	if n := p.store.Buffered(); n != 0 {
 		return n, nil
 	} else {
-		return 0, p.werr
+		return 0, p.wt.err
 	}
 }
 
@@ -106,11 +105,11 @@ func (p *Pipe) CloseReader(err error) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.rerr == nil {
-		p.rerr = err
+	if p.rd.err == nil {
+		p.rd.err = err
 	}
-	p.r.cond.Broadcast()
-	p.w.cond.Broadcast()
+	p.rd.cond.Broadcast()
+	p.wt.cond.Broadcast()
 	return p.store.CloseReader()
 }
 
@@ -119,8 +118,8 @@ func (p *Pipe) Writer() Writer {
 }
 
 func (p *Pipe) Write(b []byte) (int, error) {
-	p.w.Lock()
-	defer p.w.Unlock()
+	p.wt.Lock()
+	defer p.wt.Unlock()
 	var nn int
 	for {
 		n, err := p.writeSome(b)
@@ -134,21 +133,21 @@ func (p *Pipe) Write(b []byte) (int, error) {
 func (p *Pipe) writeSome(b []byte) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.werr != nil {
+	if p.wt.err != nil {
 		return 0, errors.Trace(io.ErrClosedPipe)
 	}
-	if p.rerr != nil {
-		return 0, p.rerr
+	if p.rd.err != nil {
+		return 0, p.rd.err
 	}
 	if len(b) == 0 {
 		return 0, nil
 	}
 	n, err := p.store.WriteSome(b)
 	if err != nil || n != 0 {
-		p.r.cond.Signal()
+		p.rd.cond.Signal()
 		return n, err
 	} else {
-		p.w.cond.Wait()
+		p.wt.cond.Wait()
 		return 0, nil
 	}
 }
@@ -156,11 +155,11 @@ func (p *Pipe) writeSome(b []byte) (int, error) {
 func (p *Pipe) Available() (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.werr != nil {
-		return 0, p.werr
+	if p.wt.err != nil {
+		return 0, p.wt.err
 	}
-	if p.rerr != nil {
-		return 0, p.rerr
+	if p.rd.err != nil {
+		return 0, p.rd.err
 	}
 	return p.store.Available(), nil
 }
@@ -171,10 +170,10 @@ func (p *Pipe) CloseWriter(err error) error {
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.werr == nil {
-		p.werr = err
+	if p.wt.err == nil {
+		p.wt.err = err
 	}
-	p.r.cond.Broadcast()
-	p.w.cond.Broadcast()
+	p.rd.cond.Broadcast()
+	p.wt.cond.Broadcast()
 	return p.store.CloseWriter()
 }
