@@ -53,7 +53,7 @@ int redisObjectEncoding(void *obj);
 int redisObjectRefCount(void *obj);
 
 void redisObjectIncrRefCount(void *obj);
-void redisObjectDecrRefCount(void *obj);
+void redisObjectDecrRefCount(void *obj, int lazyfree);
 
 void redisObjectCreateDumpPayload(void *obj, redisSds *p);
 void *redisObjectDecodeFromPayload(void *buf, size_t len);

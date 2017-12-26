@@ -32,6 +32,8 @@ import (
 	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 )
 
+var DefaultLazyfree = false
+
 func init() {
 	var buf bytes.Buffer
 	for k, v := range map[string]interface{}{
@@ -316,13 +318,14 @@ func (p *RedisSds) StringUnsafe() string {
 type RedisObject struct {
 	obj unsafe.Pointer
 
-	refs atomic2.Int64
+	lazyfree C.int
+	refcount atomic2.Int64
 }
 
 func newRedisObject(obj unsafe.Pointer) *RedisObject {
 	o := &RedisObject{obj: obj}
-	o.refs.Set(1)
-	return o
+	o.refcount.Set(1)
+	return o.SetLazyfree(DefaultLazyfree)
 }
 
 func (o *RedisObject) Type() RedisType {
@@ -342,12 +345,21 @@ func (o *RedisObject) IsEncodedObject() bool {
 	}
 }
 
+func (o *RedisObject) SetLazyfree(enable bool) *RedisObject {
+	if enable {
+		o.lazyfree = C.int(1)
+	} else {
+		o.lazyfree = C.int(0)
+	}
+	return o
+}
+
 func (o *RedisObject) RefCount() int {
-	return o.refs.AsInt()
+	return o.refcount.AsInt()
 }
 
 func (o *RedisObject) IncrRefCount() *RedisObject {
-	switch after := o.refs.Incr(); {
+	switch after := o.refcount.Incr(); {
 	case after <= 1:
 		fallthrough
 	case after > 1024:
@@ -357,9 +369,9 @@ func (o *RedisObject) IncrRefCount() *RedisObject {
 }
 
 func (o *RedisObject) DecrRefCount() {
-	switch after := o.refs.Decr(); {
+	switch after := o.refcount.Decr(); {
 	case after == 0:
-		C.redisObjectDecrRefCount(o.obj)
+		C.redisObjectDecrRefCount(o.obj, o.lazyfree)
 	case after < 0:
 		log.Panicf("Invalid DecrRefCount - [%d]", after+1)
 	}

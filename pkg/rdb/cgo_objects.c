@@ -9,8 +9,8 @@ extern void decrRefCountByLazyfreeThreads(robj *o);
 
 void redisObjectIncrRefCount(void *obj) { incrRefCount(obj); }
 
-void redisObjectDecrRefCount(void *obj) {
-  if (lazyfreeObjectGetFreeEffort((robj *)obj) < 128) {
+void redisObjectDecrRefCount(void *obj, int lazyfree) {
+  if (!lazyfree || lazyfreeObjectGetFreeEffort((robj *)obj) < 128) {
     decrRefCount(obj);
   } else {
     decrRefCountByLazyfreeThreads((robj *)obj);
