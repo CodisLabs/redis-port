@@ -118,15 +118,15 @@ func (p *Pipe) Write(b []byte) (int, error) {
 		if p.rd.err != nil {
 			return nn, p.rd.err
 		}
+	again:
 		if len(b) == 0 {
 			return nn, nil
 		}
-	again:
 		n, err := p.store.WriteSome(b)
 		if err != nil || n != 0 {
 			p.rd.cond.Signal()
 			nn, b = nn+n, b[n:]
-			if err == nil && len(b) != 0 {
+			if err == nil {
 				goto again
 			}
 			return nn, err
