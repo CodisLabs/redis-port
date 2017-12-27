@@ -473,10 +473,10 @@ func (o *RedisListObject) NewIterator() *RedisListIterator {
 	return newRedisListIterator(o)
 }
 
-func (o *RedisListObject) ForEach(on func(iter *RedisListIterator) bool) int {
+func (o *RedisListObject) ForEach(on func(iter *RedisListIterator, step int) bool) int {
 	var step int
 	var iter = o.NewIterator()
-	for on(iter) {
+	for on(iter, step) {
 		step++
 	}
 	iter.Release()
@@ -485,7 +485,7 @@ func (o *RedisListObject) ForEach(on func(iter *RedisListIterator) bool) int {
 
 func (o *RedisListObject) Strings() []string {
 	var list []string
-	o.ForEach(func(iter *RedisListIterator) bool {
+	o.ForEach(func(iter *RedisListIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
@@ -498,7 +498,7 @@ func (o *RedisListObject) Strings() []string {
 
 func (o *RedisListObject) StringsUnsafe() []string {
 	var list []string
-	o.ForEach(func(iter *RedisListIterator) bool {
+	o.ForEach(func(iter *RedisListIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
@@ -561,10 +561,10 @@ func (o *RedisHashObject) NewIterator() *RedisHashIterator {
 	return newRedisHashIterator(o)
 }
 
-func (o *RedisHashObject) ForEach(on func(iter *RedisHashIterator) bool) int {
+func (o *RedisHashObject) ForEach(on func(iter *RedisHashIterator, step int) bool) int {
 	var step int
 	var iter = o.NewIterator()
-	for on(iter) {
+	for on(iter, step) {
 		step++
 	}
 	iter.Release()
@@ -573,7 +573,7 @@ func (o *RedisHashObject) ForEach(on func(iter *RedisHashIterator) bool) int {
 
 func (o *RedisHashObject) Map() map[string]string {
 	var hash = make(map[string]string)
-	o.ForEach(func(iter *RedisHashIterator) bool {
+	o.ForEach(func(iter *RedisHashIterator, step int) bool {
 		var key, value = iter.Next()
 		if key == nil {
 			return false
@@ -586,7 +586,7 @@ func (o *RedisHashObject) Map() map[string]string {
 
 func (o *RedisHashObject) MapUnsafe() map[string]string {
 	var hash = make(map[string]string)
-	o.ForEach(func(iter *RedisHashIterator) bool {
+	o.ForEach(func(iter *RedisHashIterator, step int) bool {
 		var key, value = iter.Next()
 		if key == nil {
 			return false
@@ -634,10 +634,10 @@ func (o *RedisZsetObject) NewIterator() *RedisZsetIterator {
 	return newRedisZsetIterator(o)
 }
 
-func (o *RedisZsetObject) ForEach(on func(iter *RedisZsetIterator) bool) int {
+func (o *RedisZsetObject) ForEach(on func(iter *RedisZsetIterator, step int) bool) int {
 	var step int
 	var iter = o.NewIterator()
-	for on(iter) {
+	for on(iter, step) {
 		step++
 	}
 	iter.Release()
@@ -646,7 +646,7 @@ func (o *RedisZsetObject) ForEach(on func(iter *RedisZsetIterator) bool) int {
 
 func (o *RedisZsetObject) Map() map[string]float64 {
 	var zset = make(map[string]float64)
-	o.ForEach(func(iter *RedisZsetIterator) bool {
+	o.ForEach(func(iter *RedisZsetIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
@@ -659,7 +659,7 @@ func (o *RedisZsetObject) Map() map[string]float64 {
 
 func (o *RedisZsetObject) MapUnsafe() map[string]float64 {
 	var zset = make(map[string]float64)
-	o.ForEach(func(iter *RedisZsetIterator) bool {
+	o.ForEach(func(iter *RedisZsetIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
@@ -699,10 +699,10 @@ func (o *RedisSetObject) Len() int {
 	return int(C.redisSetObjectLen(o.obj))
 }
 
-func (o *RedisSetObject) ForEach(on func(iter *RedisSetIterator) bool) int {
+func (o *RedisSetObject) ForEach(on func(iter *RedisSetIterator, step int) bool) int {
 	var step int
 	var iter = o.NewIterator()
-	for on(iter) {
+	for on(iter, step) {
 		step++
 	}
 	iter.Release()
@@ -711,7 +711,7 @@ func (o *RedisSetObject) ForEach(on func(iter *RedisSetIterator) bool) int {
 
 func (o *RedisSetObject) Map() map[string]bool {
 	var set = make(map[string]bool)
-	o.ForEach(func(iter *RedisSetIterator) bool {
+	o.ForEach(func(iter *RedisSetIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
@@ -724,7 +724,7 @@ func (o *RedisSetObject) Map() map[string]bool {
 
 func (o *RedisSetObject) MapUnsafe() map[string]bool {
 	var set = make(map[string]bool)
-	o.ForEach(func(iter *RedisSetIterator) bool {
+	o.ForEach(func(iter *RedisSetIterator, step int) bool {
 		var key = iter.Next()
 		if key == nil {
 			return false
