@@ -323,8 +323,7 @@ type RedisObject struct {
 }
 
 func newRedisObject(obj unsafe.Pointer) *RedisObject {
-	o := &RedisObject{obj: obj}
-	o.refcount.Set(1)
+	o := &RedisObject{obj: obj, refcount: atomic2.Int64(1)}
 	return o.SetLazyfree(DefaultLazyfree)
 }
 
