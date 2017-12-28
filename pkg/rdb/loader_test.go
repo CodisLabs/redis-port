@@ -19,7 +19,7 @@ import (
 func newLoaderFromFile(path string) *rdb.Loader {
 	b, err := ioutil.ReadFile(filepath.Join("testing", path))
 	if err != nil {
-		log.PanicErrorf(err, "Read file '%s' failed.", path)
+		log.PanicErrorf(err, "Read file %q failed.", path)
 	}
 	return rdb.NewLoader(bytes.NewReader(b))
 }

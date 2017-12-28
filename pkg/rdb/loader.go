@@ -39,11 +39,11 @@ func (l *Loader) Header() {
 		log.PanicErrorf(err, "Read RDB header failed.")
 	}
 	if format := string(header[:5]); format != "REDIS" {
-		log.Panicf("Verify magic string, invalid format = '%s'.", format)
+		log.Panicf("Verify magic string, invalid format = %q.", format)
 	}
 	n, err := strconv.ParseInt(string(header[5:]), 10, 64)
 	if err != nil {
-		log.PanicErrorf(err, "Try to parse version = '%s'.", header[5:])
+		log.PanicErrorf(err, "Try to parse version = %q.", header[5:])
 	}
 	switch {
 	case n < 1 || n > RDB_VERSION:
