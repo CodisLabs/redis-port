@@ -300,6 +300,10 @@ func (p *RedisSds) IsInteger() bool {
 	return p.Ptr == nil
 }
 
+func (p *RedisSds) AsInteger() int64 {
+	return p.Value
+}
+
 func (p *RedisSds) String() string {
 	if p.IsInteger() {
 		return strconv.FormatInt(p.Value, 10)
@@ -308,11 +312,26 @@ func (p *RedisSds) String() string {
 	return string(slice)
 }
 
+func (p *RedisSds) Bytes() []byte {
+	if p.IsInteger() {
+		return strconv.AppendInt(make([]byte, 0, 32), p.Value, 10)
+	}
+	var slice = unsafeCastToSlice(p.Ptr, C.size_t(p.Len))
+	return append([]byte{}, slice...)
+}
+
 func (p *RedisSds) StringUnsafe() string {
 	if p.IsInteger() {
 		return strconv.FormatInt(p.Value, 10)
 	}
 	return unsafeCastToString(p.Ptr, C.size_t(p.Len))
+}
+
+func (p *RedisSds) BytesUnsafe() []byte {
+	if p.IsInteger() {
+		return strconv.AppendInt(make([]byte, 0, 32), p.Value, 10)
+	}
+	return unsafeCastToSlice(p.Ptr, C.size_t(p.Len))
 }
 
 type RedisObject struct {
@@ -446,18 +465,26 @@ func (o *RedisStringObject) Len() int {
 	return int(C.redisStringObjectLen(o.obj))
 }
 
-func (o *RedisStringObject) loadRedisSds() *RedisSds {
+func (o *RedisStringObject) RedisSds() *RedisSds {
 	var sds C.redisSds
 	C.redisStringObjectLoad(o.obj, &sds)
 	return &RedisSds{Ptr: sds.ptr, Len: int(sds.len), Value: int64(sds.val)}
 }
 
 func (o *RedisStringObject) String() string {
-	return o.loadRedisSds().String()
+	return o.RedisSds().String()
 }
 
 func (o *RedisStringObject) StringUnsafe() string {
-	return o.loadRedisSds().StringUnsafe()
+	return o.RedisSds().StringUnsafe()
+}
+
+func (o *RedisStringObject) Bytes() []byte {
+	return o.RedisSds().Bytes()
+}
+
+func (o *RedisStringObject) BytesUnsafe() []byte {
+	return o.RedisSds().BytesUnsafe()
 }
 
 type RedisListObject struct {
