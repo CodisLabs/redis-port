@@ -30,12 +30,7 @@ Examples:
 	$ redis-decode    dump.rdb -o dump.log
 	$ cat dump.rdb | redis-decode --ncpu=8 > dump.log
 `
-	var flags = &struct {
-		*Flags
-		mu sync.Mutex
-	}{
-		Flags: parseFlags(usage),
-	}
+	var flags = parseFlags(usage)
 
 	var input struct {
 		Path string
@@ -57,7 +52,7 @@ Examples:
 	} else {
 		output.Path = "/dev/stdout"
 	}
-	log.Infof("decode: input=%q output=%q\n", input.Path, output.Path)
+	log.Infof("decode: input = %q, output = %q\n", input.Path, output.Path)
 
 	var rbytes, wbytes atomic2.Int64
 	var objects atomic2.Int64
@@ -82,11 +77,13 @@ Examples:
 	var writer = wBuilder(output.Writer).Must().
 		Count(&wbytes).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
 
+	var mu sync.Mutex
+
 	var entryChan = newRDBLoader(reader, 32)
 
 	var jobs = NewParallelJob(flags.Parallel, func() {
 		for e := range entryChan {
-			synchronized(&flags.mu, func() {
+			synchronized(&mu, func() {
 				objects.Incr()
 				toJsonDBEntry(e, writer)
 			})
@@ -101,7 +98,7 @@ Examples:
 				stop = true
 			case <-time.After(time.Second):
 			}
-			synchronized(&flags.mu, func() {
+			synchronized(&mu, func() {
 				flushWriter(writer)
 			})
 		}

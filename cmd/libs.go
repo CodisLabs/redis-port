@@ -6,14 +6,166 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/CodisLabs/codis/pkg/proxy/redis"
+	"github.com/CodisLabs/codis/pkg/utils/bufio2"
 	"github.com/CodisLabs/codis/pkg/utils/log"
 
 	"github.com/CodisLabs/redis-port/pkg/rdb"
 )
+
+func redisParsePath(path string) (addr, auth string) {
+	var abspath = func() string {
+		if strings.HasPrefix(path, "//") {
+			return path
+		} else {
+			return "//" + path
+		}
+	}()
+	u, err := url.Parse(abspath)
+	if err != nil {
+		log.PanicErrorf(err, "invalid redis address %q", path)
+	}
+	if u.User != nil {
+		return u.Host, u.User.String()
+	} else {
+		return u.Host, ""
+	}
+}
+
+func redisNewCommand(cmd string, args ...interface{}) *redis.Resp {
+	var multi = make([]*redis.Resp, 0, len(args)+1)
+	multi = append(multi, redis.NewBulkBytes([]byte(cmd)))
+	for i := range args {
+		switch v := args[i].(type) {
+		case string:
+			multi = append(multi, redis.NewBulkBytes([]byte(v)))
+		case []byte:
+			multi = append(multi, redis.NewBulkBytes(v))
+		default:
+			var b bytes.Buffer
+			fmt.Fprint(&b, v)
+			multi = append(multi, redis.NewBulkBytes(b.Bytes()))
+		}
+	}
+	return redis.NewArray(multi)
+}
+
+func authenticate(c net.Conn, auth string) {
+	if auth == "" {
+		return
+	}
+	if b, err := redis.EncodeToBytes(redisNewCommand("AUTH", auth)); err != nil {
+		log.PanicErrorf(err, "authenticate failed")
+	} else if _, err := c.Write(b); err != nil {
+		log.PanicErrorf(err, "authenticate failed")
+	}
+	var b = make([]byte, 5)
+	if _, err := io.ReadFull(c, b); err != nil {
+		log.PanicErrorf(err, "authenticate failed")
+	}
+	if strings.ToUpper(string(b)) != "+OK\r\n" {
+		log.Panicf("authenticate failed, reply = %q", b)
+	}
+}
+
+func redisSendPsyncFullsync(r *bufio2.Reader, w *bufio2.Writer) (string, int64, <-chan int64) {
+	var enc = redis.NewEncoderBuffer(w)
+	var dec = redis.NewDecoderBuffer(r)
+	var cmd = redisNewCommand("PSYNC", "?", -1)
+	redisSendCommand(enc, cmd, true)
+	reply := redisRespAsString(redisGetResponse(dec))
+	split := strings.Split(reply, " ")
+	if len(split) != 3 || strings.ToLower(split[0]) != "fullresync" {
+		log.Panicf("psync response = %q", reply)
+	}
+	n, err := strconv.ParseInt(split[2], 10, 64)
+	if err != nil {
+		log.PanicErrorf(err, "psync response = %q", reply)
+	}
+	runid, offset, rdbSize := split[1], n, make(chan int64)
+	go func() {
+		var rsp string
+		for {
+			b := []byte{0}
+			if _, err := r.Read(b); err != nil {
+				log.PanicErrorf(err, "psync response = %q", rsp)
+			}
+			if len(rsp) == 0 && b[0] == '\n' {
+				rdbSize <- 0
+				continue
+			}
+			rsp += string(b)
+			if strings.HasSuffix(rsp, "\r\n") {
+				break
+			}
+		}
+		if rsp[0] != '$' {
+			log.Panicf("psync response = %q", rsp)
+		}
+		n, err := strconv.Atoi(rsp[1 : len(rsp)-2])
+		if err != nil || n <= 0 {
+			log.PanicErrorf(err, "psync response = %q", rsp)
+		}
+		rdbSize <- int64(n)
+	}()
+	return runid, offset, rdbSize
+}
+
+func redisSendPsyncContinue(enc *redis.Encoder, dec *redis.Decoder, runid string, offset int64) {
+	var cmd = redisNewCommand("PSYNC", runid, offset+1)
+	redisSendCommand(enc, cmd, true)
+	reply := redisRespAsString(redisGetResponse(dec))
+	split := strings.Split(reply, " ")
+	if len(split) != 1 || strings.ToLower(split[0]) != "continue" {
+		log.Panicf("psync response = %q", reply)
+	}
+}
+
+func redisSendReplAck(enc *redis.Encoder, offset int64) {
+	var cmd = redisNewCommand("REPLCONF", "ack", offset)
+	redisSendCommand(enc, cmd, true)
+}
+
+func redisSendCommand(enc *redis.Encoder, cmd *redis.Resp, flush bool) {
+	if err := enc.Encode(cmd, flush); err != nil {
+		log.PanicErrorf(err, "encode resp failed")
+	}
+}
+
+func redisGetResponse(dec *redis.Decoder) *redis.Resp {
+	r, err := dec.Decode()
+	if err != nil {
+		log.PanicErrorf(err, "decode resp failed")
+	}
+	if r.IsError() {
+		log.Panicf("error response = %q", string(r.Value))
+	}
+	return r
+}
+
+func redisRespAsString(r *redis.Resp) string {
+	if !r.IsString() {
+		log.Panicf("not string type(%s)", r.Type)
+	}
+	return string(r.Value)
+}
+
+func openConn(addr, auth string) net.Conn {
+	c, err := net.Dial("tcp", addr)
+	if err != nil {
+		log.PanicErrorf(err, "cannot connect to %q", addr)
+	}
+	authenticate(c, auth)
+	return c
+}
 
 func openReadFile(name string) (*os.File, int64) {
 	f, err := os.Open(name)
@@ -83,6 +235,22 @@ func formatAlign(align int, format string, args ...interface{}) string {
 		b.WriteByte(' ')
 	}
 	return b.String()
+}
+
+func ioCopyN(w io.Writer, r io.Reader, limit int64) {
+	n, err := io.CopyN(w, r, limit)
+	if err != nil {
+		log.PanicErrorf(err, "copy bytes failed, n = %d, expected = %d", n, limit)
+	}
+}
+
+func ioCopyBuffer(w io.Writer, r io.Reader) {
+	_, err := io.CopyBuffer(w, r, make([]byte, 8192))
+	if err != nil {
+		log.PanicErrorf(err, "copy bytes failed")
+	} else {
+		log.Panicf("copy bytes failed, EOF")
+	}
 }
 
 type Job struct {

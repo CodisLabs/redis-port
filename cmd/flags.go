@@ -22,10 +22,9 @@ const (
 type Flags struct {
 	Source, Target string
 
-	AOF bool
-
 	Parallel int
 
+	Backlog bool
 	TmpFile struct {
 		Path string
 		Size int64
@@ -87,8 +86,8 @@ func parseFlagsFromArgs(usage string, args []string) *Flags {
 		}
 	}
 
-	if t, ok := d["--aof"].(bool); ok && t {
-		flags.AOF = t
+	if t, ok := d["--backlog"].(bool); ok && t {
+		flags.Backlog = true
 	}
 
 	if s, ok := d["--unixtime-in-milliseconds"].(string); ok && s != "" {
