@@ -1,17 +1,18 @@
 package rdb
 
-// #cgo         CFLAGS: -I.
-// #cgo         CFLAGS: -I../../third_party/
-// #cgo         CFLAGS: -I../../third_party/redis/deps/lua/src/
-// #cgo         CFLAGS: -std=c99 -pedantic -O2
-// #cgo         CFLAGS: -Wall -W -Wno-missing-field-initializers
-// #cgo         CFLAGS: -D_REENTRANT
-// #cgo linux   CFLAGS: -D_POSIX_C_SOURCE=199309L
-// #cgo        LDFLAGS: -lm
-// #cgo linux   CFLAGS: -I../../third_party/jemalloc/include/
-// #cgo linux   CFLAGS: -DUSE_JEMALLOC
-// #cgo linux  LDFLAGS: -lrt
-// #cgo linux  LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
+// #cgo        CFLAGS: -I.
+// #cgo        CFLAGS: -I../../third_party/
+// #cgo        CFLAGS: -I../../third_party/redis/deps/lua/src/
+// #cgo        CFLAGS: -std=c99 -pedantic -O2
+// #cgo        CFLAGS: -Wall -W -Wno-missing-field-initializers
+// #cgo        CFLAGS: -D_REENTRANT
+// #cgo linux  CFLAGS: -D_POSIX_C_SOURCE=199309L
+// #cgo       LDFLAGS: -lm
+// #cgo linux LDFLAGS: -lrt
+//
+// #cgo cgo_jemalloc  CFLAGS: -DUSE_JEMALLOC
+// #cgo cgo_jemalloc  CFLAGS: -I../../third_party/jemalloc/include/
+// #cgo cgo_jemalloc LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
 //
 // #include "cgo_redis.h"
 //
