@@ -15,6 +15,8 @@ endif
 
 build-all: redis-sync redis-dump redis-decode redis-replay
 
+GO_LIB_SRCS = $(shell sh -c 'echo cmd/{version,flags}.go')
+
 build-deps: build-jemalloc
 	@mkdir -p bin && bash version
 
@@ -38,11 +40,14 @@ distclean: clean
 	@[ ! -f third_party/jemalloc/Makefile ] || \
 		make distclean --no-print-directory --quiet -C third_party/jemalloc
 
-gotest: build-deps
+gotest: build-deps gotest-flags
 	${GO_TEST} -v ./pkg/...
 
+gotest-flags: build-deps
+	${GO_TEST} -v ./cmd/version.go ./cmd/flags.go ./cmd/flags_test.go
+
 jemalloc:
-	@pushd third_party/jemalloc && \
+	@cd third_party/jemalloc && \
 		./autogen.sh --with-jemalloc-prefix="je_" && make -j
 
 build-jemalloc:
