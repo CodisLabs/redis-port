@@ -45,16 +45,20 @@ Examples:
 		wt *bufio2.Writer
 	}
 	master.Path = flags.Source
-	master.Addr, master.Auth = redisParsePath(flags.Source)
+	if len(master.Path) == 0 {
+		log.Panicf("invalid master address")
+	}
+	master.Addr, master.Auth = redisParsePath(master.Path)
 	if len(master.Addr) == 0 {
 		log.Panicf("invalid master address")
 	}
 
 	var output, aoflog struct {
 		Path string
-		Size atomic2.Int64
 		io.Writer
 		wt *bufio.Writer
+
+		wbytes atomic2.Int64
 	}
 	if len(flags.Target) != 0 {
 		output.Path = flags.Target
@@ -82,7 +86,7 @@ Examples:
 		output.Writer = os.Stdout
 	}
 	output.wt = wBuilder(output.Writer).Must().
-		Count(&output.Size).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
+		Count(&output.wbytes).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
 
 	if aoflog.Path != "" {
 		file := openWriteFile(aoflog.Path)
@@ -92,7 +96,7 @@ Examples:
 		aoflog.Writer = ioutil.Discard
 	}
 	aoflog.wt = wBuilder(aoflog.Writer).Must().
-		Count(&aoflog.Size).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
+		Count(&aoflog.wbytes).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
 
 	var runid, offset, rdbSizeChan = redisSendPsyncFullsync(master.rd, master.wt)
 	var rdbSize = func() int64 {
@@ -139,7 +143,7 @@ Examples:
 			case <-jobs:
 				stop = true
 			case <-time.After(time.Second):
-				redisSendReplAck(encoder, offset+aoflog.Size.Int64())
+				redisSendReplAck(encoder, offset+aoflog.wbytes.Int64())
 			}
 			synchronized(&mu, func() {
 				flushWriter(output.wt)
@@ -150,7 +154,7 @@ Examples:
 		}
 	}).Run()
 
-	log.Infof("dump: (w/a) = (rdb/aof)")
+	log.Infof("dump: (w,a) = (rdb,aof)")
 
 	NewJob(func() {
 		for stop := false; !stop; {
@@ -162,8 +166,8 @@ Examples:
 			stats := &struct {
 				output, aoflog int64
 			}{
-				output.Size.Int64(),
-				aoflog.Size.Int64(),
+				output.wbytes.Int64(),
+				aoflog.wbytes.Int64(),
 			}
 
 			var b bytes.Buffer
@@ -179,12 +183,10 @@ Examples:
 			fmt.Fprintf(&b, "   (w,a)=%s",
 				formatAlign(4, "(%d,%d)", stats.output, stats.aoflog))
 			fmt.Fprintf(&b, "  ~  (%s,%s)",
-				bytesize.Int64(stats.output).HumanString(),
-				bytesize.Int64(stats.aoflog).HumanString())
+				bytesize.Int64(stats.output).HumanString(), bytesize.Int64(stats.aoflog).HumanString())
 			log.Info(b.String())
 		}
 	}).RunAndWait()
 
 	log.Info("dump: done")
-
 }

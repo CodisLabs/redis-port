@@ -103,13 +103,13 @@ func parseFlagsFromArgs(usage string, args []string) *Flags {
 			if err != nil {
 				log.PanicErrorf(err, "parse --unixtime-in-milliseconds=%q failed", s)
 			}
-			flags.ExpireOffset = time.Until(time.Unix(n/1000, n%1000))
+			flags.ExpireOffset = time.Since(time.Unix(n/1000, n%1000))
 		default:
 			t, err := time.Parse("2006-01-02 15:04:05", s)
 			if err != nil {
 				log.PanicErrorf(err, "parse --unixtime-in-milliseconds=%q failed", s)
 			}
-			flags.ExpireOffset = time.Until(t)
+			flags.ExpireOffset = time.Since(t)
 		}
 	}
 

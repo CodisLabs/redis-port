@@ -69,7 +69,7 @@ func TestParseFlagsUnixtime(t *testing.T) {
 	}
 	var now = time.Duration(time.Now().UnixNano())
 	testcase("", 0, 0)
-	testcase("--unixtime-in-milliseconds=@0", -now, time.Second)
+	testcase("--unixtime-in-milliseconds=@0", now, time.Second)
 	testcase("--unixtime-in-milliseconds=+1000ms", time.Second, 0)
 	testcase("--unixtime-in-milliseconds=-1000ms", -time.Second, 0)
 }
