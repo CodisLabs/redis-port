@@ -37,36 +37,43 @@ Examples:
 		Flags: parseFlags(usage),
 	}
 
-	if len(flags.Source) == 0 {
-		flags.Source = "/dev/stdin"
+	var input struct {
+		Path string
+		Size int64
+		io.Reader
 	}
-	if len(flags.Target) == 0 {
-		flags.Target = "/dev/stdout"
+	if len(flags.Source) != 0 {
+		input.Path = flags.Source
+	} else {
+		input.Path = "/dev/stdin"
 	}
-	log.Infof("decode: input=%q output=%q\n", flags.Source, flags.Target)
+
+	var output struct {
+		Path string
+		io.Writer
+	}
+	if len(flags.Target) != 0 {
+		output.Path = flags.Target
+	} else {
+		output.Path = "/dev/stdout"
+	}
+	log.Infof("decode: input=%q output=%q\n", input.Path, output.Path)
 
 	var rbytes, wbytes atomic2.Int64
 	var objects atomic2.Int64
 
-	var input struct {
-		io.Reader
-		size int64
-	}
-	if flags.Source != "/dev/stdin" {
-		file, size := openReadFile(flags.Source)
+	if input.Path != "/dev/stdin" {
+		file, size := openReadFile(input.Path)
 		defer file.Close()
-		input.Reader, input.size = file, size
+		input.Reader, input.Size = file, size
 	} else {
 		input.Reader = os.Stdin
 	}
 	var reader = rBuilder(input.Reader).Must().
 		Buffer(ReaderBufferSize).Count(&rbytes).Reader
 
-	var output struct {
-		io.Writer
-	}
-	if flags.Target != "/dev/stdout" {
-		file := openWriteFile(flags.Target)
+	if output.Path != "/dev/stdout" {
+		file := openWriteFile(output.Path)
 		defer closeFile(file)
 		output.Writer = file
 	} else {
@@ -118,10 +125,10 @@ Examples:
 
 			var b bytes.Buffer
 			var percent float64
-			if input.size != 0 {
-				percent = float64(stats.rbytes) * 100 / float64(input.size)
+			if input.Size != 0 {
+				percent = float64(stats.rbytes) * 100 / float64(input.Size)
 			}
-			fmt.Fprintf(&b, "decode: file = %d - [%6.2f%%]", input.size, percent)
+			fmt.Fprintf(&b, "decode: file = %d - [%6.2f%%]", input.Size, percent)
 			fmt.Fprintf(&b, "   (r,w,o)=%s",
 				formatAlign(4, "(%d,%d,%d)", stats.rbytes, stats.wbytes, stats.objects))
 			fmt.Fprintf(&b, "  -  (%s,%s,-)",
