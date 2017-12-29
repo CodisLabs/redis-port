@@ -68,10 +68,13 @@ func parseFlagsFromArgs(usage string, args []string) *Flags {
 	var ncpu = runtime.GOMAXPROCS(0)
 
 	var flags Flags
-	if ncpu != 0 {
-		flags.Parallel = ncpu * 4
-	} else {
+	switch {
+	case ncpu <= 1:
 		flags.Parallel = 8
+	case ncpu <= 8:
+		flags.Parallel = 4 * ncpu
+	default:
+		flags.Parallel = 2 * ncpu
 	}
 	if s, ok := d["INPUT"].(string); ok && s != "" {
 		flags.Input = s

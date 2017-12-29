@@ -13,9 +13,9 @@ GO_TEST  += -tags "cgo_jemalloc"
 build-deps: build-jemalloc
 endif
 
-build-all: redis-sync redis-dump redis-decode redis-replay
+build-all: redis-sync redis-dump redis-decode redis-restore
 
-GO_LIB_SRCS = $(shell sh -c 'echo cmd/{version,flags}.go')
+GO_LIB_SRCS = $(shell sh -c 'echo cmd/{version,flags,libs,iolibs}.go')
 
 build-deps: build-jemalloc
 	@mkdir -p bin && bash version
@@ -27,9 +27,9 @@ redis-dump: build-deps
 	@echo TODO $@
 
 redis-decode: build-deps
-	@echo TODO $@
+	${GO_BUILD} -o bin/$@ ${GO_LIB_SRCS} cmd/decode.go
 
-redis-replay: build-deps
+redis-restore: build-deps
 	@echo TODO $@
 
 clean:
