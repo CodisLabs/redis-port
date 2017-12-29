@@ -20,7 +20,7 @@ const (
 )
 
 type Flags struct {
-	Input, Output string
+	Source, Target string
 
 	AOF bool
 
@@ -76,14 +76,15 @@ func parseFlagsFromArgs(usage string, args []string) *Flags {
 	default:
 		flags.Parallel = 2 * ncpu
 	}
-	if s, ok := d["INPUT"].(string); ok && s != "" {
-		flags.Input = s
+	for _, key := range []string{"INPUT", "--input", "MASTER", "--master"} {
+		if s, ok := d[key].(string); ok && s != "" {
+			flags.Source = s
+		}
 	}
-	if s, ok := d["--input"].(string); ok && s != "" {
-		flags.Input = s
-	}
-	if s, ok := d["--output"].(string); ok && s != "" {
-		flags.Output = s
+	for _, key := range []string{"--output", "--target"} {
+		if s, ok := d[key].(string); ok && s != "" {
+			flags.Target = s
+		}
 	}
 
 	if t, ok := d["--aof"].(bool); ok && t {

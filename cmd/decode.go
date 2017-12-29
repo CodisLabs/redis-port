@@ -24,6 +24,11 @@ Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
 	-i INPUT, --input=INPUT           Set input file, default is '/dev/stdin'.
 	-o OUTPUT, --output=OUTPUT        Set output file, default is '/dev/stdout'.
+
+Examples:
+	$ redis-decode -i dump.rdb -o dump.log
+	$ redis-decode    dump.rdb -o dump.log
+	$ cat dump.rdb | redis-decode --ncpu=8 > dump.log
 `
 	var flags = &struct {
 		*Flags
@@ -32,13 +37,13 @@ Options:
 		Flags: parseFlags(usage),
 	}
 
-	if len(flags.Input) == 0 {
-		flags.Input = "/dev/stdin"
+	if len(flags.Source) == 0 {
+		flags.Source = "/dev/stdin"
 	}
-	if len(flags.Output) == 0 {
-		flags.Output = "/dev/stdout"
+	if len(flags.Target) == 0 {
+		flags.Target = "/dev/stdout"
 	}
-	log.Infof("decode: input=%q output=%q\n", flags.Input, flags.Output)
+	log.Infof("decode: input=%q output=%q\n", flags.Source, flags.Target)
 
 	var rbytes, wbytes atomic2.Int64
 	var objects atomic2.Int64
@@ -47,8 +52,8 @@ Options:
 		io.Reader
 		size int64
 	}
-	if flags.Input != "/dev/stdin" {
-		file, size := openReadFile(flags.Input)
+	if flags.Source != "/dev/stdin" {
+		file, size := openReadFile(flags.Source)
 		defer file.Close()
 		input.Reader, input.size = file, size
 	} else {
@@ -60,8 +65,8 @@ Options:
 	var output struct {
 		io.Writer
 	}
-	if flags.Output != "/dev/stdout" {
-		file := openWriteFile(flags.Output)
+	if flags.Target != "/dev/stdout" {
+		file := openWriteFile(flags.Target)
 		defer closeFile(file)
 		output.Writer = file
 	} else {
