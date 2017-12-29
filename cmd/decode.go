@@ -128,7 +128,7 @@ Examples:
 			fmt.Fprintf(&b, "decode: file = %d - [%6.2f%%]", input.Size, percent)
 			fmt.Fprintf(&b, "   (r,w,o)=%s",
 				formatAlign(4, "(%d,%d,%d)", stats.rbytes, stats.wbytes, stats.objects))
-			fmt.Fprintf(&b, "  -  (%s,%s,-)",
+			fmt.Fprintf(&b, "  ~  (%s,%s,-)",
 				bytesize.Int64(stats.rbytes).HumanString(),
 				bytesize.Int64(stats.wbytes).HumanString())
 			log.Info(b.String())
