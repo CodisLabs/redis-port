@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	ReaderBufferSize = bytesize.MB * 32
-	WriterBufferSize = bytesize.MB * 8
+	ReaderBufferSize = 1024 * 128
+	WriterBufferSize = 1024 * 128
 )
 
 type Flags struct {

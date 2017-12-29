@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -17,8 +18,11 @@ import (
 	"github.com/CodisLabs/codis/pkg/proxy/redis"
 	"github.com/CodisLabs/codis/pkg/utils/bufio2"
 	"github.com/CodisLabs/codis/pkg/utils/log"
+	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
 
 	"github.com/CodisLabs/redis-port/pkg/rdb"
+
+	redigo "github.com/garyburd/redigo/redis"
 )
 
 func redisParsePath(path string) (addr, auth string) {
@@ -156,6 +160,12 @@ func redisRespAsString(r *redis.Resp) string {
 		log.Panicf("not string type(%s)", r.Type)
 	}
 	return string(r.Value)
+}
+
+func redisFlushEncoder(enc *redis.Encoder) {
+	if err := enc.Flush(); err != nil {
+		log.PanicErrorf(err, "flush encoder failed")
+	}
 }
 
 func openConn(addr, auth string) net.Conn {
@@ -404,5 +414,207 @@ func toJsonDBEntry(e *rdb.DBEntry, w *bufio.Writer) {
 		}{
 			e.DB, "expire", e.Key.StringUnsafe(), uint64(e.Expire / time.Millisecond),
 		})
+	}
+}
+
+func redigoOpenConn(addr, auth string) redigo.Conn {
+	return redigo.NewConn(openConn(addr, auth), 0, 0)
+}
+
+func redigoSendCommand(c redigo.Conn, cmd string, args ...interface{}) {
+	if err := c.Send(cmd, args...); err != nil {
+		log.PanicErrorf(err, "send redigo request failed")
+	}
+}
+
+func redigoFlushConnIf(c redigo.Conn, flush bool) {
+	if flush {
+		redigoFlushConn(c)
+	}
+}
+
+func redigoFlushConn(c redigo.Conn) {
+	if err := c.Flush(); err != nil {
+		log.PanicErrorf(err, "flush redigo connection failed")
+	}
+}
+
+func redigoGetResponse(c redigo.Conn) {
+	_, err := c.Receive()
+	if err != nil {
+		log.PanicErrorf(err, "fetch redigo reply failed")
+	}
+}
+
+func genRestoreCommands(e *rdb.DBEntry, db uint64, on func(cmd string, args ...interface{})) {
+	if db != e.DB {
+		on("SELECT", e.DB)
+	}
+	var key = e.Key.BytesUnsafe()
+	on("DEL", key)
+
+	const MaxArgsNum = 512
+	var args []interface{}
+	var pushArgs = func(cmd string, added ...interface{}) {
+		if len(args) == 0 {
+			args = append(args, key)
+		}
+		args = append(args, added...)
+		if len(args) < MaxArgsNum-1 {
+			return
+		}
+		on(cmd, args...)
+		args = make([]interface{}, 0, MaxArgsNum)
+	}
+	var flushCommand = func(cmd string) {
+		if len(args) == 0 {
+			return
+		}
+		on(cmd, args...)
+	}
+	switch e.Value.Type() {
+	default:
+		log.Panicf("unknown object type db=%d key=%s", e.DB, e.Key.String())
+	case rdb.OBJ_STRING:
+		on("SET", key, e.Value.AsString().BytesUnsafe())
+	case rdb.OBJ_LIST:
+		e.Value.AsList().ForEach(func(iter *rdb.RedisListIterator, index int) bool {
+			var field = iter.Next()
+			if field == nil {
+				return false
+			}
+			pushArgs("RPUSH", field.BytesUnsafe())
+			return true
+		})
+		flushCommand("RPUSH")
+	case rdb.OBJ_HASH:
+		e.Value.AsHash().ForEach(func(iter *rdb.RedisHashIterator, index int) bool {
+			var field, value = iter.Next()
+			if field == nil {
+				return false
+			}
+			pushArgs("HMSET", field.BytesUnsafe(), value.BytesUnsafe())
+			return true
+		})
+		flushCommand("HMSET")
+	case rdb.OBJ_SET:
+		e.Value.AsSet().ForEach(func(iter *rdb.RedisSetIterator, index int) bool {
+			var member = iter.Next()
+			if member == nil {
+				return false
+			}
+			pushArgs("SADD", member.BytesUnsafe())
+			return true
+		})
+		flushCommand("SADD")
+	case rdb.OBJ_ZSET:
+		e.Value.AsZset().ForEach(func(iter *rdb.RedisZsetIterator, index int) bool {
+			var member = iter.Next()
+			if member == nil {
+				return false
+			}
+			pushArgs("ZADD", member.Score, member.BytesUnsafe())
+			return true
+		})
+		flushCommand("SADD")
+	}
+	if e.Expire != rdb.NoExpire {
+		on("PEXPIREAT", key, int64(e.Expire/time.Millisecond))
+	}
+}
+
+func doRestoreDBEntry(entryChan <-chan *rdb.DBEntry, addr, auth string, on func(e *rdb.DBEntry) bool) {
+	var ticker = time.NewTicker(time.Millisecond * 250)
+	defer ticker.Stop()
+
+	var tick atomic2.Int64
+	go func() {
+		for range ticker.C {
+			tick.Incr()
+		}
+	}()
+
+	var c = redigoOpenConn(addr, auth)
+	defer c.Close()
+
+	var replyChan = make(chan *rdb.DBEntry, 128)
+
+	NewJob(func() {
+		defer close(replyChan)
+		var db uint64
+		for e := range entryChan {
+			if on(e) {
+				genRestoreCommands(e, db, func(cmd string, args ...interface{}) {
+					redigoSendCommand(c, cmd, args...)
+					redigoFlushConnIf(c, func() bool {
+						switch {
+						case tick.Swap(0) != 0:
+							return true
+						case len(entryChan) == 0:
+							return true
+						default:
+							return len(replyChan) == cap(replyChan)
+						}
+					}())
+					replyChan <- e.IncrRefCount()
+				})
+				db = e.DB
+			}
+			e.DecrRefCount()
+		}
+		redigoFlushConn(c)
+	}).Run()
+
+	NewJob(func() {
+		for e := range replyChan {
+			e.DecrRefCount()
+			redigoGetResponse(c)
+		}
+	}).RunAndWait()
+}
+
+func doRestoreAoflog(reader *bufio2.Reader, addr, auth string, on func(db uint64, cmd string) bool) {
+	var ticker = time.NewTicker(time.Millisecond * 100)
+	defer ticker.Stop()
+
+	var tick atomic2.Int64
+	go func() {
+		for range ticker.C {
+			tick.Incr()
+		}
+	}()
+
+	var c = openConn(addr, auth)
+	defer c.Close()
+
+	go ioCopyBuffer(ioutil.Discard, c)
+
+	var encoder = redis.NewEncoder(c)
+	var decoder = redis.NewDecoderBuffer(reader)
+	var db uint64
+	for {
+		r, err := decoder.Decode()
+		if err != nil {
+			redisFlushEncoder(encoder)
+			log.PanicErrorf(err, "decode command failed")
+		}
+		if r.Type != redis.TypeArray || len(r.Array) == 0 {
+			log.Panicf("invalid command %+v", r)
+		}
+		var cmd = strings.ToUpper(string(r.Array[0].Value))
+		if cmd == "SELECT" {
+			if len(r.Array) != 2 {
+				log.Panicf("bad select command %+v", r)
+			}
+			n, err := strconv.ParseInt(string(r.Array[1].Value), 10, 64)
+			if err != nil {
+				log.PanicErrorf(err, "bad select command %+v", r)
+			}
+			db = uint64(n)
+		}
+		if !on(db, cmd) {
+			continue
+		}
+		redisSendCommand(encoder, r, tick.Swap(0) != 0)
 	}
 }

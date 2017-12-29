@@ -32,7 +32,8 @@ redis-decode: build-deps
 		${GO_SRCS} cmd/decode.go
 
 redis-restore: build-deps
-	@echo TODO $@
+	${GO_BUILD} -o bin/$@ \
+		${GO_SRCS} cmd/restore.go
 
 clean:
 	@rm -rf bin

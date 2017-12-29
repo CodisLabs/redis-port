@@ -1,187 +1,162 @@
-// Copyright 2016 CodisLabs. All Rights Reserved.
-// Licensed under the MIT (MIT-LICENSE.txt) license.
-
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
+	"github.com/CodisLabs/codis/pkg/utils/bufio2"
+	"github.com/CodisLabs/codis/pkg/utils/bytesize"
 	"github.com/CodisLabs/codis/pkg/utils/log"
 	"github.com/CodisLabs/codis/pkg/utils/sync2/atomic2"
-	"github.com/CodisLabs/redis-port/pkg/redis"
+
+	"github.com/CodisLabs/redis-port/pkg/rdb"
 )
 
-type cmdRestore struct {
-	rbytes, ebytes, nentry, ignore atomic2.Int64
+func main() {
+	const usage = `
+Usage:
+	redis-restore [--ncpu=N] [--input=INPUT|INPUT] [--target=TARGET] [--aof=FILE] [--db=DB] [--unixtime-in-milliseconds=EXPR]
+	redis-restore  --version
 
-	forward, nbypass atomic2.Int64
-}
+Options:
+	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
+	-i INPUT, --input=INPUT           Set input file, default is '/dev/stdin'.
+	-t TARGET, --target=TARGET        The target redis instance ([auth@]host:port).
+	-a FILE, --aof=FILE               Also restore the replication backlog.
+	--faketime=FAKETIME               Set current system time to adjust key's expire time.
+	--db=DB                           Accept db = DB, default is *.
+	--unixtime-in-milliseconds=EXPR   Update expire time when restoring objects from RDB.
 
-type cmdRestoreStat struct {
-	rbytes, ebytes, nentry, ignore int64
+Examples:
+	$ redis-restore    dump.rdb -t 127.0.0.1:6379
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --aof dump.aof
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --db=0
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="@209059200000"       // ttlms += (now - '1976-08-17')
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="+1000"               // ttlms += 1s
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="-1000"               // ttlms -= 1s
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="1976-08-17 00:00:00" // ttlms += (now - '1976-08-17')
+`
+	var flags = parseFlags(usage)
 
-	forward, nbypass int64
-}
+	var input, aoflog struct {
+		Path string
+		Size int64
+		io.Reader
+		rd *bufio2.Reader
 
-func (cmd *cmdRestore) Stat() *cmdRestoreStat {
-	return &cmdRestoreStat{
-		rbytes: cmd.rbytes.Get(),
-		ebytes: cmd.ebytes.Get(),
-		nentry: cmd.nentry.Get(),
-		ignore: cmd.ignore.Get(),
+		rbytes atomic2.Int64
 
-		forward: cmd.forward.Get(),
-		nbypass: cmd.nbypass.Get(),
+		forward, skip atomic2.Int64
 	}
-}
-
-func (cmd *cmdRestore) Main() {
-	input, target := args.input, args.target
-	if len(target) == 0 {
-		log.Panic("invalid argument: target")
-	}
-	if len(input) == 0 {
-		input = "/dev/stdin"
-	}
-
-	log.Infof("restore from '%s' to '%s'\n", input, target)
-
-	var readin io.ReadCloser
-	var nsize int64
-	if input != "/dev/stdin" {
-		readin, nsize = openReadFile(input)
-		defer readin.Close()
+	if len(flags.Source) != 0 {
+		input.Path = flags.Source
 	} else {
-		readin, nsize = os.Stdin, 0
+		input.Path = "/dev/stdin"
+	}
+	if len(flags.AofPath) != 0 {
+		aoflog.Path = flags.AofPath
 	}
 
-	reader := bufio.NewReaderSize(readin, ReaderBufferSize)
-
-	cmd.RestoreRDBFile(reader, target, args.auth, nsize, args.codis)
-
-	if !args.extra {
-		return
+	var target struct {
+		Path       string
+		Addr, Auth string
 	}
-
-	if nsize != 0 && nsize == cmd.rbytes.Get() {
-		return
+	target.Path = flags.Target
+	if len(target.Path) == 0 {
+		log.Panicf("invalid target address")
 	}
+	target.Addr, target.Auth = redisParsePath(target.Path)
+	if len(target.Addr) == 0 {
+		log.Panicf("invalid master address")
+	}
+	log.Infof("restore: input = %q, aoflog = %q target = %q\n", input.Path, aoflog.Path, target.Path)
 
-	cmd.RestoreCommand(reader, target, args.auth)
-}
+	if input.Path != "/dev/stdin" {
+		file, size := openReadFile(input.Path)
+		defer file.Close()
+		input.Reader, input.Size = file, size
+	} else {
+		input.Reader = os.Stdin
+	}
+	input.rd = rBuilder(input.Reader).Must().
+		Count(&input.rbytes).Buffer2(ReaderBufferSize).Reader.(*bufio2.Reader)
 
-func (cmd *cmdRestore) RestoreRDBFile(reader *bufio.Reader, target, passwd string, nsize int64, codis bool) {
-	pipe := newRDBLoader(reader, &cmd.rbytes, args.parallel*32)
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		group := make(chan int, args.parallel)
-		for i := 0; i < cap(group); i++ {
-			go func() {
-				defer func() {
-					group <- 0
-				}()
-				c := openRedisConn(target, passwd)
-				defer c.Close()
-				var lastdb uint32 = 0
-				for e := range pipe {
-					if !acceptDB(e.DB) {
-						cmd.ignore.Incr()
-					} else {
-						cmd.nentry.Incr()
-						if e.DB != lastdb {
-							lastdb = e.DB
-							selectDB(c, lastdb)
-						}
-						restoreRdbEntry(c, e, codis)
-					}
+	if aoflog.Path != "" {
+		file, size := openReadFile(aoflog.Path)
+		defer file.Close()
+		aoflog.Reader, aoflog.Size = file, size
+	} else {
+		aoflog.Reader = bytes.NewReader(nil)
+	}
+	aoflog.rd = rBuilder(aoflog.Reader).Must().
+		Count(&aoflog.rbytes).Buffer2(ReaderBufferSize).Reader.(*bufio2.Reader)
+
+	var entryChan = newRDBLoader(input.rd, 32)
+
+	var jobs = NewParallelJob(flags.Parallel, func() {
+		doRestoreDBEntry(entryChan, target.Addr, target.Auth,
+			func(e *rdb.DBEntry) bool {
+				if e.Expire != rdb.NoExpire {
+					e.Expire += flags.ExpireOffset
 				}
-			}()
-		}
-		for i := 0; i < cap(group); i++ {
-			<-group
-		}
-	}()
-
-	for done := false; !done; {
-		select {
-		case <-wait:
-			done = true
-		case <-time.After(time.Second):
-		}
-		stat := cmd.Stat()
-		var b bytes.Buffer
-		if nsize != 0 {
-			fmt.Fprintf(&b, "total = %d - %12d [%3d%%]", nsize, stat.rbytes, 100*stat.rbytes/nsize)
-		} else {
-			fmt.Fprintf(&b, "total = %12d", stat.rbytes)
-		}
-		fmt.Fprintf(&b, "  entry=%-12d", stat.nentry)
-		if stat.ignore != 0 {
-			fmt.Fprintf(&b, "  ignore=%-12d", stat.ignore)
-		}
-		log.Info(b.String())
-	}
-	log.Info("restore: rdb done")
-}
-
-func (cmd *cmdRestore) RestoreCommand(reader *bufio.Reader, target, passwd string) {
-	c := openNetConn(target, passwd)
-	defer c.Close()
-
-	writer := bufio.NewWriterSize(c, WriterBufferSize)
-	defer flushWriter(writer)
-
-	go func() {
-		p := make([]byte, ReaderBufferSize)
-		for {
-			iocopy(c, ioutil.Discard, p, len(p))
-		}
-	}()
-
-	go func() {
-		var bypass bool = false
-		for {
-			resp := redis.MustDecode(reader)
-			if scmd, args, err := redis.ParseArgs(resp); err != nil {
-				log.PanicError(err, "parse command arguments failed")
-			} else if scmd != "ping" {
-				if scmd == "select" {
-					if len(args) != 1 {
-						log.Panicf("select command len(args) = %d", len(args))
-					}
-					s := string(args[0])
-					n, err := parseInt(s, MinDB, MaxDB)
-					if err != nil {
-						log.PanicErrorf(err, "parse db = %s failed", s)
-					}
-					bypass = !acceptDB(uint32(n))
+				if !acceptDB(e.DB) {
+					input.skip.Incr()
+					return false
 				}
-				if bypass {
-					cmd.nbypass.Incr()
-					continue
+				input.forward.Incr()
+				return true
+			})
+	}).Then(func() {
+		if aoflog.Path == "" {
+			return
+		}
+		doRestoreAoflog(aoflog.rd, target.Addr, target.Auth,
+			func(db uint64, cmd string) bool {
+				if !acceptDB(db) && cmd != "PING" {
+					aoflog.skip.Incr()
+					return false
 				}
+				aoflog.forward.Incr()
+				return true
+			})
+	}).Run()
+
+	log.Infof("restore: (r,f,s/a,f,s) = (rdb,rdb.forward,rdb.skip/aof,rdb.forward,rdb.skip)")
+
+	NewJob(func() {
+		for stop := false; !stop; {
+			select {
+			case <-jobs:
+				stop = true
+			case <-time.After(time.Second):
 			}
-			cmd.forward.Incr()
-			redis.MustEncode(writer, resp)
-			flushWriter(writer)
-		}
-	}()
+			stats := &struct {
+				input, aoflog int64
+			}{
+				input.rbytes.Int64(), aoflog.rbytes.Int64(),
+			}
 
-	for lstat := cmd.Stat(); ; {
-		time.Sleep(time.Second)
-		nstat := cmd.Stat()
-		var b bytes.Buffer
-		fmt.Fprintf(&b, "restore: ")
-		fmt.Fprintf(&b, " +forward=%-6d", nstat.forward-lstat.forward)
-		fmt.Fprintf(&b, " +nbypass=%-6d", nstat.nbypass-lstat.nbypass)
-		log.Info(b.String())
-		lstat = nstat
-	}
+			var b bytes.Buffer
+			var percent float64
+			if input.Size != 0 {
+				percent = float64(stats.input) * 100 / float64(input.Size)
+			}
+			if input.Size >= stats.input {
+				fmt.Fprintf(&b, "restore: rdb = %d - [%6.2f%%]", input.Size, percent)
+			} else {
+				fmt.Fprintf(&b, "restore: rdb = %d", input.Size)
+			}
+			fmt.Fprintf(&b, "   (r,f,s/a,f,s)=%s",
+				formatAlign(4, "(%d,%d,%d/%d,%d,%d)", stats.input, input.forward.Int64(), input.skip.Int64(),
+					stats.aoflog, aoflog.forward.Int64(), aoflog.skip.Int64()))
+			fmt.Fprintf(&b, "  ~  (%s,-,-/%s,-,-)",
+				bytesize.Int64(stats.input).HumanString(), bytesize.Int64(stats.aoflog).HumanString())
+			log.Info(b.String())
+		}
+	}).RunAndWait()
+
+	log.Info("restore: done")
 }
