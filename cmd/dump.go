@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"sync"
@@ -20,19 +21,19 @@ import (
 func main() {
 	const usage = `
 Usage:
-	redis-dump [--ncpu=N] --master=MASTER|MASTER [--output=OUTPUT] [--backlog]
+	redis-dump [--ncpu=N] --master=MASTER|MASTER [--output=OUTPUT] [--aof=FILE]
 	redis-dump  --version
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
 	-m MASTER, --master=MASTER        The master redis instance ([auth@]host:port).
 	-o OUTPUT, --output=OUTPUT        Set output file, default is '/dev/stdout'.
-	-a, --backlog                     Also dump the replication backlog.
+	-a FILE, --aof=FILE               Also dump the replication backlog.
 
 Examples:
 	$ redis-dump    127.0.0.1:6379 -o dump.rdb
 	$ redis-dump    127.0.0.1:6379 -o dump.rdb -a
-	$ redis-dump -m passwd@192.168.0.1:6380 -o dump.rdb --backlog
+	$ redis-dump -m passwd@192.168.0.1:6380 -o dump.rdb -a dump.aof
 `
 	var flags = parseFlags(usage)
 
@@ -49,18 +50,22 @@ Examples:
 		log.Panicf("invalid master address")
 	}
 
-	var output struct {
+	var output, aoflog struct {
 		Path string
+		Size atomic2.Int64
 		io.Writer
+		wt *bufio.Writer
 	}
 	if len(flags.Target) != 0 {
 		output.Path = flags.Target
 	} else {
 		output.Path = "/dev/stdout"
 	}
-	log.Infof("dump: master = %q, output = %q\n", master.Path, output.Path)
 
-	var wbytes atomic2.Int64
+	if len(flags.AofPath) != 0 {
+		aoflog.Path = flags.AofPath
+	}
+	log.Infof("dump: master = %q, output = %q, aoflog = %q\n", master.Path, output.Path, aoflog.Path)
 
 	master.Conn = openConn(master.Addr, master.Auth)
 	defer master.Close()
@@ -76,8 +81,18 @@ Examples:
 	} else {
 		output.Writer = os.Stdout
 	}
-	var writer = wBuilder(output.Writer).Must().
-		Count(&wbytes).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
+	output.wt = wBuilder(output.Writer).Must().
+		Count(&output.Size).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
+
+	if aoflog.Path != "" {
+		file := openWriteFile(aoflog.Path)
+		defer closeFile(file)
+		aoflog.Writer = file
+	} else {
+		aoflog.Writer = ioutil.Discard
+	}
+	aoflog.wt = wBuilder(aoflog.Writer).Must().
+		Count(&aoflog.Size).Buffer(WriterBufferSize).Writer.(*bufio.Writer)
 
 	var runid, offset, rdbSizeChan = redisSendPsyncFullsync(master.rd, master.wt)
 	var rdbSize = func() int64 {
@@ -99,23 +114,21 @@ Examples:
 
 	var mu sync.Mutex
 
-	var dumpoff atomic2.Int64
-	var reploff = atomic2.Int64(offset)
 	var encoder = redis.NewEncoderBuffer(master.wt)
 
 	var jobs = NewJob(func() {
 		var (
-			rd = rBuilder(master.rd).Count(&dumpoff).Reader
-			wt = wBuilder(writer).Mutex(&mu).Writer
+			rd = rBuilder(master.rd).Reader
+			wt = wBuilder(output.wt).Mutex(&mu).Writer
 		)
 		ioCopyN(wt, rd, rdbSize)
 	}).Then(func() {
-		if !flags.Backlog {
+		if aoflog.Path == "" {
 			return
 		}
 		var (
-			rd = rBuilder(master.rd).Count(&reploff).Reader
-			wt = wBuilder(writer).Mutex(&mu).Writer
+			rd = rBuilder(master.rd).Reader
+			wt = wBuilder(aoflog.wt).Mutex(&mu).Writer
 		)
 		ioCopyBuffer(wt, rd)
 	}).Run()
@@ -126,15 +139,18 @@ Examples:
 			case <-jobs:
 				stop = true
 			case <-time.After(time.Second):
-				redisSendReplAck(encoder, reploff.Int64())
+				redisSendReplAck(encoder, offset+aoflog.Size.Int64())
 			}
 			synchronized(&mu, func() {
-				flushWriter(writer)
+				flushWriter(output.wt)
+			})
+			synchronized(&mu, func() {
+				flushWriter(aoflog.wt)
 			})
 		}
 	}).Run()
 
-	log.Infof("dump: (w/b) = (write/backlog)")
+	log.Infof("dump: (w/a) = (rdb/aof)")
 
 	NewJob(func() {
 		for stop := false; !stop; {
@@ -144,28 +160,27 @@ Examples:
 			case <-time.After(time.Second):
 			}
 			stats := &struct {
-				dumpoff, reploff, wbytes int64
+				output, aoflog int64
 			}{
-				dumpoff.Int64(),
-				reploff.Int64(), wbytes.Int64(),
+				output.Size.Int64(),
+				aoflog.Size.Int64(),
 			}
 
 			var b bytes.Buffer
 			var percent float64
 			if rdbSize != 0 {
-				percent = float64(stats.dumpoff) * 100 / float64(rdbSize)
+				percent = float64(stats.output) * 100 / float64(rdbSize)
 			}
-			if rdbSize >= stats.wbytes {
+			if rdbSize >= stats.output {
 				fmt.Fprintf(&b, "dump: rdb = %d - [%6.2f%%]", rdbSize, percent)
 			} else {
 				fmt.Fprintf(&b, "dump: rdb = %d", rdbSize)
 			}
-			var backlog = stats.reploff - offset
-			fmt.Fprintf(&b, "   (w,b)=%s",
-				formatAlign(4, "(%d,%d)", stats.wbytes, backlog))
+			fmt.Fprintf(&b, "   (w,a)=%s",
+				formatAlign(4, "(%d,%d)", stats.output, stats.aoflog))
 			fmt.Fprintf(&b, "  ~  (%s,%s)",
-				bytesize.Int64(stats.wbytes).HumanString(),
-				bytesize.Int64(backlog).HumanString())
+				bytesize.Int64(stats.output).HumanString(),
+				bytesize.Int64(stats.aoflog).HumanString())
 			log.Info(b.String())
 		}
 	}).RunAndWait()

@@ -2,6 +2,7 @@
 *.rdb
 *.swp
 *.out
+*.aof
 *.dump
 *.log.*
 
