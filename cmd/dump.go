@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/CodisLabs/codis/pkg/proxy/redis"
 	"github.com/CodisLabs/codis/pkg/utils/bufio2"
 	"github.com/CodisLabs/codis/pkg/utils/bytesize"
 	"github.com/CodisLabs/codis/pkg/utils/log"
@@ -21,13 +20,13 @@ import (
 func main() {
 	const usage = `
 Usage:
-	redis-dump [--ncpu=N] --master=MASTER|MASTER [--output=OUTPUT] [--aof=FILE]
+	redis-dump [--ncpu=N] (--master=MASTER|MASTER) [--output=OUTPUT] [--aof=FILE]
 	redis-dump  --version
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
 	-m MASTER, --master=MASTER        The master redis instance ([auth@]host:port).
-	-o OUTPUT, --output=OUTPUT        Set output file, default is '/dev/stdout'.
+	-o OUTPUT, --output=OUTPUT        Set output file. [default: /dev/stdout].
 	-a FILE, --aof=FILE               Also dump the replication backlog.
 
 Examples:
@@ -60,15 +59,12 @@ Examples:
 
 		wbytes atomic2.Int64
 	}
-	if len(flags.Target) != 0 {
-		output.Path = flags.Target
-	} else {
-		output.Path = "/dev/stdout"
+	output.Path = flags.Target
+	if len(output.Path) == 0 {
+		log.Panicf("invalid output file")
 	}
+	aoflog.Path = flags.AofPath
 
-	if len(flags.AofPath) != 0 {
-		aoflog.Path = flags.AofPath
-	}
 	log.Infof("dump: master = %q, output = %q, aoflog = %q\n", master.Path, output.Path, aoflog.Path)
 
 	master.Conn = openConn(master.Addr, master.Auth)
@@ -118,8 +114,6 @@ Examples:
 
 	var mu sync.Mutex
 
-	var encoder = redis.NewEncoderBuffer(master.wt)
-
 	var jobs = NewJob(func() {
 		var (
 			rd = rBuilder(master.rd).Reader
@@ -143,7 +137,7 @@ Examples:
 			case <-jobs:
 				stop = true
 			case <-time.After(time.Second):
-				redisSendReplAck(encoder, offset+aoflog.wbytes.Int64())
+				redisSendReplAck(master.wt, offset+aoflog.wbytes.Int64())
 			}
 			synchronized(&mu, func() {
 				flushWriter(output.wt)

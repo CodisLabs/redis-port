@@ -22,8 +22,8 @@ Usage:
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
-	-i INPUT, --input=INPUT           Set input file, default is '/dev/stdin'.
-	-o OUTPUT, --output=OUTPUT        Set output file, default is '/dev/stdout'.
+	-i INPUT, --input=INPUT           Set input rdb encoded file.  [default: /dev/stdin].
+	-o OUTPUT, --output=OUTPUT        Set output file. [default: /dev/stdout].
 
 Examples:
 	$ redis-decode -i dump.rdb -o dump.log
@@ -40,10 +40,9 @@ Examples:
 
 		rbytes atomic2.Int64
 	}
-	if len(flags.Source) != 0 {
-		input.Path = flags.Source
-	} else {
-		input.Path = "/dev/stdin"
+	input.Path = flags.Source
+	if len(input.Path) == 0 {
+		log.Panicf("invalid input file")
 	}
 
 	var output struct {
@@ -53,10 +52,9 @@ Examples:
 
 		wbytes atomic2.Int64
 	}
-	if len(flags.Target) != 0 {
-		output.Path = flags.Target
-	} else {
-		output.Path = "/dev/stdout"
+	output.Path = flags.Target
+	if len(output.Path) == 0 {
+		log.Panicf("invalid output file")
 	}
 	log.Infof("decode: input = %q, output = %q\n", input.Path, output.Path)
 

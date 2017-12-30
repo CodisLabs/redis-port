@@ -62,9 +62,9 @@ func redisNewCommand(cmd string, args ...interface{}) *redis.Resp {
 	return redis.NewArray(multi)
 }
 
-func authenticate(c net.Conn, auth string) {
+func authenticate(c net.Conn, auth string) net.Conn {
 	if auth == "" {
-		return
+		return c
 	}
 	if b, err := redis.EncodeToBytes(redisNewCommand("AUTH", auth)); err != nil {
 		log.PanicErrorf(err, "authenticate failed")
@@ -78,6 +78,7 @@ func authenticate(c net.Conn, auth string) {
 	if strings.ToUpper(string(b)) != "+OK\r\n" {
 		log.Panicf("authenticate failed, reply = %q", b)
 	}
+	return c
 }
 
 func redisSendPsyncFullsync(r *bufio2.Reader, w *bufio2.Writer) (string, int64, <-chan int64) {
@@ -123,7 +124,9 @@ func redisSendPsyncFullsync(r *bufio2.Reader, w *bufio2.Writer) (string, int64, 
 	return runid, offset, rdbSize
 }
 
-func redisSendPsyncContinue(enc *redis.Encoder, dec *redis.Decoder, runid string, offset int64) {
+func redisSendPsyncContinue(r *bufio2.Reader, w *bufio2.Writer, runid string, offset int64) {
+	var enc = redis.NewEncoderBuffer(w)
+	var dec = redis.NewDecoderBuffer(r)
 	var cmd = redisNewCommand("PSYNC", runid, offset+1)
 	redisSendCommand(enc, cmd, true)
 	reply := redisRespAsString(redisGetResponse(dec))
@@ -133,9 +136,16 @@ func redisSendPsyncContinue(enc *redis.Encoder, dec *redis.Decoder, runid string
 	}
 }
 
-func redisSendReplAck(enc *redis.Encoder, offset int64) {
+func redisSendReplAck(w *bufio2.Writer, offset int64) {
+	var enc = redis.NewEncoderBuffer(w)
 	var cmd = redisNewCommand("REPLCONF", "ack", offset)
 	redisSendCommand(enc, cmd, true)
+}
+
+func redisSendReplAckNoCheck(w *bufio2.Writer, offset int64) error {
+	var enc = redis.NewEncoderBuffer(w)
+	var cmd = redisNewCommand("REPLCONF", "ack", offset)
+	return enc.Encode(cmd, true)
 }
 
 func redisSendCommand(enc *redis.Encoder, cmd *redis.Resp, flush bool) {
@@ -173,8 +183,7 @@ func openConn(addr, auth string) net.Conn {
 	if err != nil {
 		log.PanicErrorf(err, "cannot connect to %q", addr)
 	}
-	authenticate(c, auth)
-	return c
+	return authenticate(c, auth)
 }
 
 func openReadFile(name string) (*os.File, int64) {
@@ -187,6 +196,14 @@ func openReadFile(name string) (*os.File, int64) {
 		log.PanicErrorf(err, "can't stat file %q", name)
 	}
 	return f, s.Size()
+}
+
+func openTempFile(dir, prefix string) *os.File {
+	f, err := ioutil.TempFile(dir, prefix)
+	if err != nil {
+		log.PanicErrorf(err, "can't open temp file dir=%q prefix=%q", dir, prefix)
+	}
+	return f
 }
 
 func openWriteFile(name string) *os.File {

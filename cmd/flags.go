@@ -138,6 +138,8 @@ func parseFlagsFromArgs(usage string, args []string) *Flags {
 			log.PanicErrorf(err, "parse --tmpfile-size=%q failed", s)
 		}
 		flags.TmpFile.Size = n
+	} else if flags.TmpFile.Path != "" {
+		flags.TmpFile.Size = bytesize.GB * 2
 	}
 	return &flags
 }

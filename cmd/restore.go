@@ -17,15 +17,14 @@ import (
 func main() {
 	const usage = `
 Usage:
-	redis-restore [--ncpu=N] [--input=INPUT|INPUT] [--target=TARGET] [--aof=FILE] [--db=DB] [--unixtime-in-milliseconds=EXPR]
+	redis-restore [--ncpu=N] [--input=INPUT|INPUT] --target=TARGET [--aof=FILE] [--db=DB] [--unixtime-in-milliseconds=EXPR]
 	redis-restore  --version
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
-	-i INPUT, --input=INPUT           Set input file, default is nothing.
+	-i INPUT, --input=INPUT           Set input rdb encoded file.
 	-t TARGET, --target=TARGET        The target redis instance ([auth@]host:port).
 	-a FILE, --aof=FILE               Also restore the replication backlog.
-	--faketime=FAKETIME               Set current system time to adjust key's expire time.
 	--db=DB                           Accept db = DB, default is *.
 	--unixtime-in-milliseconds=EXPR   Update expire time when restoring objects from RDB.
 
@@ -47,9 +46,7 @@ Examples:
 		io.Reader
 		rd *bufio2.Reader
 
-		rbytes atomic2.Int64
-
-		forward, skip atomic2.Int64
+		rbytes, forward, skip atomic2.Int64
 	}
 	if len(flags.Source) != 0 {
 		input.Path = flags.Source
