@@ -10,9 +10,9 @@ package rdb
 // #cgo       LDFLAGS: -lm
 // #cgo linux LDFLAGS: -lrt
 //
-// #cgo cgo_jemalloc  CFLAGS: -DUSE_JEMALLOC
-// #cgo cgo_jemalloc  CFLAGS: -I../../third_party/jemalloc/include/
-// #cgo cgo_jemalloc LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
+// #cgo use_jemalloc  CFLAGS: -DUSE_JEMALLOC
+// #cgo use_jemalloc  CFLAGS: -I../../third_party/jemalloc/include/
+// #cgo use_jemalloc LDFLAGS: -L../../third_party/jemalloc/lib/ -ljemalloc_pic
 //
 // #include "cgo_redis.h"
 //

@@ -8,8 +8,8 @@ GO_BUILD := go build -i
 GO_TEST  := go test
 
 ifeq ($(UNAME_S),Linux)
-GO_BUILD += -tags "cgo_jemalloc"
-GO_TEST  += -tags "cgo_jemalloc"
+GO_BUILD += -tags "use_jemalloc"
+GO_TEST  += -tags "use_jemalloc"
 build-deps: build-jemalloc
 endif
 
