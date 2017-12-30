@@ -21,7 +21,8 @@ build-deps: build-jemalloc
 	@mkdir -p bin && bash version
 
 redis-sync: build-deps
-	@echo TODO $@
+	${GO_BUILD} -o bin/$@ \
+		${GO_SRCS} cmd/sync.go
 
 redis-dump: build-deps
 	${GO_BUILD} -o bin/$@ \
