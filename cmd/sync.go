@@ -146,7 +146,7 @@ Examples:
 
 				<-fence
 
-				log.Infof("connect lost %q", master.Addr)
+				log.Infof("connection lost %q", master.Addr)
 
 			try_again:
 				time.Sleep(time.Second)
