@@ -15,7 +15,7 @@ endif
 
 build-all: redis-sync redis-dump redis-decode redis-restore
 
-GO_SRCS := $(shell sh -c 'echo cmd/{version,flags,libs,iolibs}.go')
+GO_SRCS := cmd/version.go cmd/flags.go cmd/libs.go cmd/iolibs.go
 
 build-deps: build-jemalloc
 	@mkdir -p bin && bash version

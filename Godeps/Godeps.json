@@ -1,40 +1,55 @@
 {
 	"ImportPath": "github.com/CodisLabs/redis-port",
-	"GoVersion": "go1.7",
+	"GoVersion": "go1.9",
 	"GodepVersion": "v79",
 	"Packages": [
 		"./..."
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/proxy/redis",
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
+		},
+		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/assert",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/bufio2",
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/bytesize",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/errors",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/log",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/sync2/atomic2",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/trace",
-			"Comment": "3.1.5-2-g900a352",
-			"Rev": "900a352e489922744c1cad566f413c37d89e7020"
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
+		},
+		{
+			"ImportPath": "github.com/CodisLabs/codis/pkg/utils/unsafe2",
+			"Comment": "3.2.1-10-g9fde2809",
+			"Rev": "9fde2809cca131e3da1a7e0920ea151029301fb4"
 		},
 		{
 			"ImportPath": "github.com/docopt/docopt-go",
@@ -52,16 +67,9 @@
 			"Rev": "48545177e92ae3e7bcdbd50b42f7a139e6a268da"
 		},
 		{
-			"ImportPath": "github.com/spinlock/rdb",
-			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
-		},
-		{
-			"ImportPath": "github.com/spinlock/rdb/crc64",
-			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
-		},
-		{
-			"ImportPath": "github.com/spinlock/rdb/nopdecoder",
-			"Rev": "c0378accf333a1e5909318f7fb7c5ced071b030f"
+			"ImportPath": "github.com/spinlock/jemalloc-go",
+			"Comment": "4.5.0-2-g2e84521",
+			"Rev": "2e84521acd411768e7b5a9e996d3853b3a53b644"
 		}
 	]
 }
