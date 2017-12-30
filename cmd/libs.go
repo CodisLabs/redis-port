@@ -427,8 +427,8 @@ func redigoSendCommand(c redigo.Conn, cmd string, args ...interface{}) {
 	}
 }
 
-func redigoFlushConnIf(c redigo.Conn, flush bool) {
-	if flush {
+func redigoFlushConnIf(c redigo.Conn, on func() bool) {
+	if on() {
 		redigoFlushConn(c)
 	}
 }
@@ -453,18 +453,18 @@ func genRestoreCommands(e *rdb.DBEntry, db uint64, on func(cmd string, args ...i
 	var key = e.Key.BytesUnsafe()
 	on("DEL", key)
 
-	const MaxArgsNum = 512
+	const MaxArgsNum = 511
 	var args []interface{}
 	var pushArgs = func(cmd string, added ...interface{}) {
 		if len(args) == 0 {
 			args = append(args, key)
 		}
 		args = append(args, added...)
-		if len(args) < MaxArgsNum-1 {
+		if len(args) < MaxArgsNum {
 			return
 		}
 		on(cmd, args...)
-		args = make([]interface{}, 0, MaxArgsNum)
+		args = make([]interface{}, 0, MaxArgsNum+1)
 	}
 	var flushCommand = func(cmd string) {
 		if len(args) == 0 {
@@ -550,12 +550,12 @@ func doRestoreDBEntry(entryChan <-chan *rdb.DBEntry, addr, auth string, on func(
 						switch {
 						case tick.Swap(0) != 0:
 							return true
-						case len(entryChan) == 0:
+						case len(replyChan) == cap(replyChan):
 							return true
 						default:
-							return len(replyChan) == cap(replyChan)
+							return len(entryChan) == 0
 						}
-					}())
+					})
 					replyChan <- e.IncrRefCount()
 				})
 				db = e.DB

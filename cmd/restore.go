@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/CodisLabs/codis/pkg/utils/bufio2"
@@ -23,7 +22,7 @@ Usage:
 
 Options:
 	-n N, --ncpu=N                    Set runtime.GOMAXPROCS to N.
-	-i INPUT, --input=INPUT           Set input file, default is '/dev/stdin'.
+	-i INPUT, --input=INPUT           Set input file, default is nothing.
 	-t TARGET, --target=TARGET        The target redis instance ([auth@]host:port).
 	-a FILE, --aof=FILE               Also restore the replication backlog.
 	--faketime=FAKETIME               Set current system time to adjust key's expire time.
@@ -32,8 +31,9 @@ Options:
 
 Examples:
 	$ redis-restore    dump.rdb -t 127.0.0.1:6379
-	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --aof dump.aof
-	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --db=0
+	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --aof dump.aof --db=1
+	$ redis-restore             -t 127.0.0.1:6379 --aof dump.aof
+	$ redis-restore             -t 127.0.0.1:6379 --db=0
 	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="@209059200000"       // ttlms += (now - '1976-08-17')
 	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="+1000"               // ttlms += 1s
 	$ redis-restore -i dump.rdb -t 127.0.0.1:6379 --unixtime-in-milliseconds="-1000"               // ttlms -= 1s
@@ -53,8 +53,6 @@ Examples:
 	}
 	if len(flags.Source) != 0 {
 		input.Path = flags.Source
-	} else {
-		input.Path = "/dev/stdin"
 	}
 	if len(flags.AofPath) != 0 {
 		aoflog.Path = flags.AofPath
@@ -70,16 +68,16 @@ Examples:
 	}
 	target.Addr, target.Auth = redisParsePath(target.Path)
 	if len(target.Addr) == 0 {
-		log.Panicf("invalid master address")
+		log.Panicf("invalid target address")
 	}
 	log.Infof("restore: input = %q, aoflog = %q target = %q\n", input.Path, aoflog.Path, target.Path)
 
-	if input.Path != "/dev/stdin" {
+	if input.Path != "" {
 		file, size := openReadFile(input.Path)
 		defer file.Close()
 		input.Reader, input.Size = file, size
 	} else {
-		input.Reader = os.Stdin
+		aoflog.Reader = bytes.NewReader(nil)
 	}
 	input.rd = rBuilder(input.Reader).Must().
 		Count(&input.rbytes).Buffer2(ReaderBufferSize).Reader.(*bufio2.Reader)
@@ -94,21 +92,25 @@ Examples:
 	aoflog.rd = rBuilder(aoflog.Reader).Must().
 		Count(&aoflog.rbytes).Buffer2(ReaderBufferSize).Reader.(*bufio2.Reader)
 
-	var entryChan = newRDBLoader(input.rd, 32)
-
-	var jobs = NewParallelJob(flags.Parallel, func() {
-		doRestoreDBEntry(entryChan, target.Addr, target.Auth,
-			func(e *rdb.DBEntry) bool {
-				if e.Expire != rdb.NoExpire {
-					e.Expire += flags.ExpireOffset
-				}
-				if !acceptDB(e.DB) {
-					input.skip.Incr()
-					return false
-				}
-				input.forward.Incr()
-				return true
-			})
+	var jobs = NewJob(func() {
+		if input.Path == "" {
+			return
+		}
+		var entryChan = newRDBLoader(input.rd, 32)
+		NewParallelJob(flags.Parallel, func() {
+			doRestoreDBEntry(entryChan, target.Addr, target.Auth,
+				func(e *rdb.DBEntry) bool {
+					if e.Expire != rdb.NoExpire {
+						e.Expire += flags.ExpireOffset
+					}
+					if !acceptDB(e.DB) {
+						input.skip.Incr()
+						return false
+					}
+					input.forward.Incr()
+					return true
+				})
+		}).RunAndWait()
 	}).Then(func() {
 		if aoflog.Path == "" {
 			return
@@ -140,15 +142,14 @@ Examples:
 			}
 
 			var b bytes.Buffer
-			var percent float64
+			var percent1, percent2 float64
 			if input.Size != 0 {
-				percent = float64(stats.input) * 100 / float64(input.Size)
+				percent1 = float64(stats.input) * 100 / float64(input.Size)
 			}
-			if input.Size >= stats.input {
-				fmt.Fprintf(&b, "restore: rdb = %d - [%6.2f%%]", input.Size, percent)
-			} else {
-				fmt.Fprintf(&b, "restore: rdb = %d", input.Size)
+			if aoflog.Size != 0 {
+				percent2 = float64(stats.aoflog) * 100 / float64(aoflog.Size)
 			}
+			fmt.Fprintf(&b, "restore: size = %d - [%6.2f%%,%6.2f%%]", input.Size+aoflog.Size, percent1, percent2)
 			fmt.Fprintf(&b, "   (r,f,s/a,f,s)=%s",
 				formatAlign(4, "(%d,%d,%d/%d,%d,%d)", stats.input, input.forward.Int64(), input.skip.Int64(),
 					stats.aoflog, aoflog.forward.Int64(), aoflog.skip.Int64()))
