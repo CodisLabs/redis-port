@@ -17,7 +17,7 @@ build-all: redis-sync redis-dump redis-decode redis-restore
 
 GO_SRCS := cmd/version.go cmd/flags.go cmd/libs.go cmd/iolibs.go
 
-build-deps: build-jemalloc
+build-deps:
 	@mkdir -p bin && bash version
 
 redis-sync: build-deps
