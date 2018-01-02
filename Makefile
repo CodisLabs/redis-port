@@ -13,9 +13,14 @@ GO_TEST  += -tags "use_jemalloc"
 build-deps: build-jemalloc
 endif
 
+ifeq ($(UNAME_S),Darwin)
+GO_BUILD += -ldflags="-s"
+GO_TEST  += -ldflags="-s"
+endif
+
 build-all: redis-sync redis-dump redis-decode redis-restore
 
-GO_SRCS := cmd/version.go cmd/flags.go cmd/libs.go cmd/iolibs.go
+GO_SRCS := $(shell bash -c 'echo cmd/{version,flags,libs,iolibs}.go')
 
 build-deps:
 	@mkdir -p bin && bash version
