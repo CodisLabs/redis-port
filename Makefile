@@ -4,7 +4,7 @@ export GO15VENDOREXPERIMENT=1
 
 UNAME_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
-GO_BUILD := go build -i
+GO_BUILD := go build
 GO_TEST  := go test
 
 ifeq ($(UNAME_S),Linux)

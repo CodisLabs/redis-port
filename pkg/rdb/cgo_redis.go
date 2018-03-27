@@ -3,7 +3,7 @@ package rdb
 // #cgo        CFLAGS: -I.
 // #cgo        CFLAGS: -I../../third_party/
 // #cgo        CFLAGS: -I../../third_party/redis/deps/lua/src/
-// #cgo        CFLAGS: -std=c99 -pedantic -O2
+// #cgo        CFLAGS: -std=c99 -O2
 // #cgo        CFLAGS: -Wall -W -Wno-missing-field-initializers
 // #cgo        CFLAGS: -D_REENTRANT
 // #cgo linux  CFLAGS: -D_POSIX_C_SOURCE=199309L
