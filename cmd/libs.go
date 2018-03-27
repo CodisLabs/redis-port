@@ -533,7 +533,7 @@ func genRestoreCommands(e *rdb.DBEntry, db uint64, on func(cmd string, args ...i
 			pushArgs("ZADD", member.Score, member.BytesUnsafe())
 			return true
 		})
-		flushCommand("SADD")
+		flushCommand("ZADD")
 	}
 	if e.Expire != rdb.NoExpire {
 		on("PEXPIREAT", key, int64(e.Expire/time.Millisecond))
